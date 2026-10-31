@@ -45,19 +45,25 @@ final class InputRecorder {
         queue.sync { timer?.cancel() }
     }
 
-    /// Shifts times so 0 is the first video frame and writes cursor images into `cursorFolder`.
-    func makeLog(videoStart: Double, videoEnd: Double, sourceSize: CGSize, cursorFolder: URL) throws -> InputLog {
+    /// Drops input from paused stretches, shifts times so 0 is the first video frame and writes
+    /// cursor images into `cursorFolder`. `videoStart` and `videoEnd` are on the recording clock.
+    func makeLog(clock: RecordingClock, videoStart: Double, videoEnd: Double, sourceSize: CGSize, cursorFolder: URL) throws -> InputLog {
         let (cursor, clicks) = queue.sync { (self.cursor, self.clicks) }
         let duration = videoEnd - videoStart
+        let time = { (host: Double) in clock.recordingTime(forHost: host).map { $0 - videoStart } }
         let keep = { (time: Double) in time >= -1 && time <= duration + 1 }
+        // Clicks outside a recorded area or window must not pull the camera toward the edge.
+        let inside = { (point: CGPoint) in CGRect(origin: .zero, size: sourceSize).contains(point) }
         return InputLog(
             sourceSize: sourceSize,
             pointPixelScale: scale,
             duration: duration,
-            cursor: cursor.map { CursorSample(time: $0.time - videoStart, position: $0.position, shape: $0.shape) }
-                .filter { keep($0.time) },
-            clicks: clicks.map { ClickEvent(time: $0.time - videoStart, position: $0.position, isDown: $0.isDown) }
-                .filter { keep($0.time) },
+            cursor: cursor.compactMap { sample in
+                time(sample.time).map { CursorSample(time: $0, position: sample.position, shape: sample.shape) }
+            }.filter { keep($0.time) },
+            clicks: clicks.compactMap { click in
+                time(click.time).map { ClickEvent(time: $0, position: click.position, isDown: click.isDown) }
+            }.filter { keep($0.time) && inside($0.position) },
             shapes: try shapes.save(to: cursorFolder)
         )
     }

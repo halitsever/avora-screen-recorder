@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// Tunables for automatic zoom. Times are in seconds.
@@ -26,10 +27,21 @@ public struct ZoomConfig: Sendable, Equatable {
     }
 }
 
-public struct ZoomSegment: Sendable, Equatable {
+public struct ZoomSegment: Sendable, Equatable, Codable {
     public var start: Double
     public var end: Double
     public var scale: Double
+    /// Where the camera holds, as fractions of the recorded frame. nil follows the cursor.
+    public var focus: CGPoint?
+
+    public init(start: Double, end: Double, scale: Double, focus: CGPoint? = nil) {
+        self.start = start
+        self.end = end
+        self.scale = scale
+        self.focus = focus
+    }
+
+    public var length: Double { end - start }
 
     public func contains(_ time: Double) -> Bool { time >= start && time <= end }
 }

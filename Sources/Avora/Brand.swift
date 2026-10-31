@@ -7,6 +7,7 @@ enum Brand {
     static let peach = Color(rgb: 0xFFD3A1)
     static let ink = Color(rgb: 0x121318)
     static let inkColor = NSColor(srgbRed: 0x12 / 255, green: 0x13 / 255, blue: 0x18 / 255, alpha: 1)
+    static let orangeColor = NSColor(srgbRed: 0xF2 / 255, green: 0x6B / 255, blue: 0x1D / 255, alpha: 1)
 
     static var mark: NSImage? { NSImage(named: "AvoraMark") }
 

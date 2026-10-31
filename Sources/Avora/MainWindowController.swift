@@ -8,12 +8,14 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     private let controller: RecordingController
     private let preferences: Preferences
     private let openVideos: () -> Void
+    private let openSettings: () -> Void
     private var window: NSWindow?
 
-    init(controller: RecordingController, preferences: Preferences, openVideos: @escaping () -> Void) {
+    init(controller: RecordingController, preferences: Preferences, openVideos: @escaping () -> Void, openSettings: @escaping () -> Void) {
         self.controller = controller
         self.preferences = preferences
         self.openVideos = openVideos
+        self.openSettings = openSettings
     }
 
     func show() {
@@ -25,7 +27,7 @@ final class MainWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        DockPresence.windowWillClose(notification)
     }
 
     private func makeWindow() -> NSWindow {
@@ -45,7 +47,8 @@ final class MainWindowController: NSObject, NSWindowDelegate {
         // The titlebar height differs between macOS releases, so measure it instead of assuming.
         let titlebarHeight = window.frame.height - window.contentLayoutRect.height
         let content = NSHostingView(rootView: MainView(
-            controller: controller, preferences: preferences, openVideos: openVideos, titlebarHeight: titlebarHeight
+            controller: controller, preferences: preferences, openVideos: openVideos, openSettings: openSettings,
+            titlebarHeight: titlebarHeight
         ))
         // MainView reserves the titlebar space itself; a safe area here would add it a second time.
         content.safeAreaRegions = []
