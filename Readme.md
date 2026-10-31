@@ -10,7 +10,7 @@
 <img src="https://img.shields.io/github/sponsors/halitsever"/>
 </p>
 <p align="center">
-<a align="center" href="docs/how-it-works.md">Documentation</a>
+<a align="center" href="https://halitsever.github.io/avora-screen-recorder/">Documentation</a>
   </p>
 </p>
 
@@ -18,11 +18,11 @@
 <img src="https://halitsever-api.vercel.app/api/details"/>
 </p>
 
-- 🔍 [**Automatic zoom**](docs/how-it-works.md#how-the-automatic-zoom-works) - every click zooms the video in on that spot, and the camera follows the area you work in.
-- 🖱️ [**Smooth cursor**](docs/how-it-works.md#how-the-automatic-zoom-works) - Avora draws the cursor itself, larger and with smoothed movement.
-- 🎨 [**Backgrounds**](docs/how-it-works.md#backgrounds) - twelve preset backdrops behind a screen with rounded corners and a soft shadow.
-- 🧭 [**Menu bar first**](docs/how-it-works.md#using-avora) - start and stop recording from the menu bar, or from Avora's own window.
-- 🛠️ [**Re-render**](docs/how-it-works.md#re-rendering-a-recording) - raw recordings are kept, so you can render them again with another background.
+- 🔍 [**Automatic zoom**](https://halitsever.github.io/avora-screen-recorder/#zoom) - every click zooms the video in on that spot, and the camera follows the area you work in.
+- 🖱️ [**Smooth cursor**](https://halitsever.github.io/avora-screen-recorder/#zoom) - Avora draws the cursor itself, larger and with smoothed movement.
+- 🎨 [**Backgrounds**](https://halitsever.github.io/avora-screen-recorder/#backgrounds) - twelve preset backdrops behind a screen with rounded corners and a soft shadow.
+- 🧭 [**Menu bar first**](https://halitsever.github.io/avora-screen-recorder/#using) - start and stop recording from the menu bar, or from Avora's own window.
+- 🛠️ [**Re-render**](https://halitsever.github.io/avora-screen-recorder/#install) - raw recordings are kept, so you can render them again with another background.
 
 <p align="center" >
 <img src="https://halitsever-api.vercel.app/api/installation"/>

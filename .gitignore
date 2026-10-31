@@ -135,3 +135,7 @@ build/
 .swiftpm/
 .DS_Store
 .superpowers/
+
+# VitePress
+docs/.vitepress/cache/
+docs/.vitepress/dist/
