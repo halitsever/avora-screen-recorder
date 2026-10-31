@@ -15,6 +15,23 @@
 - A recorded window is followed when it moves and stays visible when other windows cover it.
 - The editor shows the audio waveform under the zooms.
 - The test workflow can also be started by hand.
+- Camera: a bubble in any corner, square to 16:9, rounded or circular, that shrinks during zooms; a floating preview while recording; hidden ranges in the editor.
+- Captions written on the Mac from what was said, burned into the video or saved as .srt, editable in the editor.
+- Voice presets: as recorded, even level, or clear, which removes background noise with Apple's voice isolation.
+- Editor: cut, split and speed up clips with pitch kept, blur and highlight masks, crop, cursor-hidden ranges, undo and redo, export and copy, copy or save the current frame.
+- Cursor: click effects (circle or ripple), fading out when idle, holding still at the end, hiding it entirely.
+- A badge for the keyboard shortcuts pressed while recording, which never records plain typing.
+- Output shapes from 16:9 to 9:16, and backdrops from a solid color, your own picture or the desktop wallpaper, with blur.
+- Restart (⌃⌥⌘⌫) and discard a recording; send a finished video to the clipboard; save looks as presets.
+- Recordings are written as they go, and Avora offers to recover one cut short by a crash.
+- `Avora render` takes `--preset` and `--setting key=value`.
+- Camera layouts for any stretch of the video: side by side with the screen (stacked in a tall video) or full screen, easing in and out.
+- After each recording the camera is lined up with the microphone by matching the speaker's lips to their voice.
+- **Auto Blur** in the editor finds email addresses, phone and card numbers, IBANs, API keys or faces on screen and blurs them. Masks may now overlap.
+- **Speed Up Typing** in the editor plays stretches of steady typing at 3×, when **Note when you type** is on.
+- In square, 4:5 and 9:16 videos a zoom fills the frame instead of leaving bands of backdrop.
+- The editor opens after each recording unless turned off in **Settings…**.
+- The headline describes the whole app instead of the zoom alone.
 - A recording that fails to start no longer leaves an empty folder behind.
 
 ## 0.1.0 - 2026-10-31

@@ -254,7 +254,7 @@ div[class*='language-']:hover > button.copy, div[class*='language-'] > button.co
   .wrap, .hero-frame { padding: 0 16px; }
   .nav .l { display: none; }
   .hero { padding-top: 130px; }
-  h1 { font-size: 12.4vw; margin-bottom: 28px; }
+  h1 { font-size: 10.6vw; margin-bottom: 28px; }
   .hero-copy, .using, .bgs, .card-grid { grid-template-columns: 1fr; gap: 24px; }
   .using, .bgs, .card-grid { gap: 36px; }
   .pin { grid-template-columns: 1fr; gap: 20px; align-content: start; padding: 76px 16px 20px; }
