@@ -2,6 +2,7 @@ import AVFoundation
 import AppKit
 import CoreImage
 import SwiftUI
+import ZoomEngine
 
 /// Carries the renderer to the compositor; AVFoundation creates the compositor itself.
 /// Nothing in it changes after creation, so sharing it across threads is safe.
@@ -13,12 +14,17 @@ final class PreviewInstruction: NSObject, AVVideoCompositionInstructionProtocol,
     let passthroughTrackID = kCMPersistentTrackID_Invalid
     let renderer: FrameRenderer
     let sourceTrackID: CMPersistentTrackID
+    let cameraTrackID: CMPersistentTrackID?
+    /// Turns the video's clock back into the recording's, which the renderer works in.
+    let clips: ClipList
 
-    init(timeRange: CMTimeRange, renderer: FrameRenderer, sourceTrackID: CMPersistentTrackID) {
+    init(timeRange: CMTimeRange, renderer: FrameRenderer, sourceTrackID: CMPersistentTrackID, cameraTrackID: CMPersistentTrackID?, clips: ClipList) {
         self.timeRange = timeRange
         self.renderer = renderer
         self.sourceTrackID = sourceTrackID
-        requiredSourceTrackIDs = [NSNumber(value: sourceTrackID)]
+        self.cameraTrackID = cameraTrackID
+        self.clips = clips
+        requiredSourceTrackIDs = ([sourceTrackID] + (cameraTrackID.map { [$0] } ?? [])).map { NSNumber(value: $0) }
     }
 }
 
@@ -39,32 +45,29 @@ final class PreviewCompositor: NSObject, AVVideoCompositing {
             request.finish(with: ExportError.reader(nil))
             return
         }
-        let image = instruction.renderer.render(source: CIImage(cvPixelBuffer: source), at: request.compositionTime.seconds)
+        let time = instruction.clips.sourceTime(atOutput: request.compositionTime.seconds)
+        let camera = instruction.cameraTrackID.flatMap { request.sourceFrame(byTrackID: $0) }.map { CIImage(cvPixelBuffer: $0) }
+        let image = instruction.renderer.render(source: CIImage(cvPixelBuffer: source), camera: camera, at: time)
         let size = CGSize(width: CVPixelBufferGetWidth(output), height: CVPixelBufferGetHeight(output))
         context.render(image, to: output, bounds: CGRect(origin: .zero, size: size), colorSpace: colorSpace)
         request.finish(withComposedVideoFrame: output)
     }
 }
 
-/// The raw screen video and its audio on one timeline, ready for a player item.
+/// The recording on the video's timeline, ready for a player item.
 struct PreviewAsset {
     let composition: AVMutableComposition
     let videoTrackID: CMPersistentTrackID
+    let cameraTrackID: CMPersistentTrackID?
     let audioMix: AVAudioMix?
     let duration: CMTime
+    let clips: ClipList
 
-    static func make(for folder: RecordingFolder, duration seconds: Double) async throws -> PreviewAsset {
-        let composition = AVMutableComposition()
-        let source = AVURLAsset(url: folder.video)
-        guard let videoSource = try await source.loadTracks(withMediaType: .video).first,
-              let video = composition.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)
-        else { throw ExportError.noVideoTrack }
-        let duration = CMTime.seconds(seconds)
-        let available = try await videoSource.load(.timeRange)
-        try video.insertTimeRange(CMTimeRange(start: available.start, duration: CMTimeMinimum(duration, available.duration)),
-                                  of: videoSource, at: .zero)
-        let audio = try await AudioMixSource.addAudio(from: folder, duration: seconds, to: composition)
-        return PreviewAsset(composition: composition, videoTrackID: video.trackID, audioMix: audio?.mix, duration: duration)
+    static func make(for folder: RecordingFolder, duration seconds: Double, clips: ClipList, voice: VoicePreset) async throws -> PreviewAsset {
+        let timeline = try await TimelineComposition.make(for: folder, sourceDuration: seconds, clips: clips, video: true, voice: voice)
+        guard let videoTrackID = timeline.videoTrackID else { throw ExportError.noVideoTrack }
+        return PreviewAsset(composition: timeline.composition, videoTrackID: videoTrackID, cameraTrackID: timeline.cameraTrackID, audioMix: timeline.audioMix,
+                            duration: .seconds(timeline.duration), clips: clips)
     }
 
     func videoComposition(renderer: FrameRenderer, fps: Double) -> AVMutableVideoComposition {
@@ -73,7 +76,7 @@ struct PreviewAsset {
         videoComposition.renderSize = renderer.canvas
         videoComposition.frameDuration = CMTime(value: 1, timescale: CMTimeScale(fps))
         videoComposition.instructions = [
-            PreviewInstruction(timeRange: CMTimeRange(start: .zero, duration: duration), renderer: renderer, sourceTrackID: videoTrackID),
+            PreviewInstruction(timeRange: CMTimeRange(start: .zero, duration: duration), renderer: renderer, sourceTrackID: videoTrackID, cameraTrackID: cameraTrackID, clips: clips),
         ]
         return videoComposition
     }

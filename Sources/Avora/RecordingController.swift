@@ -43,6 +43,7 @@ final class RecordingController: ObservableObject {
     var onFinished: ((RecordingFolder) -> Void)?
 
     private var session: Session?
+    private var checkpoints: Task<Void, Never>?
 
     /// Everything that runs while one recording is in progress.
     private struct Session {
@@ -52,7 +53,11 @@ final class RecordingController: ObservableObject {
         let input: InputRecorder
         let screen: ScreenRecorder
         let microphone: MicrophoneRecorder?
+        let camera: CameraRecorder?
+        let cameraWriter: CameraTrackWriter?
+        let cameraPreview: CameraPreviewPanel?
         let window: WindowTracker?
+        let keystrokes: KeystrokeRecorder?
         let audio: [(writer: AudioTrackWriter, kind: AudioManifest.Kind)]
     }
 
@@ -64,7 +69,8 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    func start() async {
+    /// `reusing` records the same display, window or area again without asking.
+    func start(reusing given: CaptureTarget? = nil) async {
         guard state == .idle else { return }
         state = .starting
         var created: RecordingFolder?
@@ -76,10 +82,11 @@ final class RecordingController: ObservableObject {
             let preferences = Preferences.shared
             let clock = RecordingClock()
             let target: CaptureTarget
-            switch preferences.captureMode {
-            case .screen:
+            if let given {
+                target = given
+            } else if preferences.captureMode == .screen {
                 target = try await CaptureTarget.current()
-            case .window, .area:
+            } else {
                 guard let picked = await SelectionOverlay.pick(preferences.captureMode) else {
                     state = .idle
                     return
@@ -99,6 +106,14 @@ final class RecordingController: ObservableObject {
                 microphone = try await MicrophoneRecorder(deviceID: deviceID, clock: clock, writer: writer)
                 audio.append((writer, .microphone))
             }
+            var camera: CameraRecorder?
+            var cameraWriter: CameraTrackWriter?
+            if let deviceID = preferences.cameraID {
+                let writer = CameraTrackWriter(url: folder.camera)
+                camera = try await CameraRecorder(deviceID: deviceID, clock: clock, writer: writer)
+                cameraWriter = writer
+            }
+            let cameraPreview = camera.flatMap { preferences.showsCameraPreview ? CameraPreviewPanel(session: $0.session) : nil }
             let systemAudio = preferences.recordsSystemAudio ? AudioTrackWriter(url: folder.systemAudio) : nil
             if let systemAudio { audio.append((systemAudio, .system)) }
 
@@ -106,19 +121,34 @@ final class RecordingController: ObservableObject {
             tracker?.start()
             let input = InputRecorder(displayBounds: target.bounds, scale: target.scale, window: tracker, pixelSize: target.pixelSize)
             let screen = ScreenRecorder(clock: clock, systemAudio: systemAudio)
+            let wantsKeys = preferences.settings.showsShortcuts || preferences.settings.notesTyping
+            let keystrokes = wantsKeys ? KeystrokeRecorder(notesTyping: preferences.settings.notesTyping) : nil
             input.start()
+            keystrokes?.start()
             microphone?.start()
+            camera?.start()
+            cameraPreview?.show()
             do {
                 try await screen.start(target, to: folder.video)
             } catch {
                 input.stop()
+                keystrokes?.stop()
                 microphone?.stop()
+                camera?.stop()
+                cameraPreview?.close()
                 tracker?.stop()
                 throw error
             }
             session = Session(folder: folder, target: target, clock: clock, input: input, screen: screen,
-                              microphone: microphone, window: tracker, audio: audio)
+                              microphone: microphone, camera: camera, cameraWriter: cameraWriter, cameraPreview: cameraPreview,
+                              window: tracker, keystrokes: keystrokes, audio: audio)
             state = .recording(RecordingTimer(started: Date()))
+            checkpoints = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(5))
+                    self?.saveCheckpoint()
+                }
+            }
         } catch let error as SCStreamError where error.code == .userDeclined {
             state = .idle
             onError?(PermissionError.screenRecording)
@@ -127,6 +157,10 @@ final class RecordingController: ObservableObject {
             state = .idle
             onError?(MicrophoneError.denied)
             NSWorkspace.shared.open(MicrophoneError.settingsURL)
+        } catch CameraError.denied {
+            state = .idle
+            onError?(CameraError.denied)
+            NSWorkspace.shared.open(CameraError.settingsURL)
         } catch {
             state = .idle
             onError?(error)
@@ -147,8 +181,74 @@ final class RecordingController: ObservableObject {
         state = .recording(timer)
     }
 
+    /// Writes what is known so far, so a crash leaves a recording that can be recovered.
+    private func saveCheckpoint() {
+        guard let session, let start = session.screen.startTime else { return }
+        let folder = session.folder
+        let end = session.clock.recordingTime(endingAt: HostClock.now())
+        if let log = try? session.input.makeLog(clock: session.clock, videoStart: start, videoEnd: end,
+                                                 sourceSize: session.target.pixelSize, cursorFolder: folder.cursors) {
+            try? JSONEncoder().encode(log).write(to: folder.partialLog, options: .atomic)
+        }
+        let tracks = session.audio.compactMap { writer, kind in
+            writer.startTime.map { AudioManifest.Track(file: writer.url.lastPathComponent, kind: kind, offset: $0 - start) }
+        }
+        if !tracks.isEmpty { try? JSONEncoder().encode(AudioManifest(tracks: tracks)).write(to: folder.audioManifest, options: .atomic) }
+        if let cameraStart = session.cameraWriter?.startTime {
+            try? JSONEncoder().encode(CameraManifest(file: folder.camera.lastPathComponent, offset: cameraStart - start))
+                .write(to: folder.cameraManifest, options: .atomic)
+        }
+        if let keys = session.keystrokes?.presses(clock: session.clock, videoStart: start), !keys.isEmpty {
+            try? JSONEncoder().encode(keys).write(to: folder.keys, options: .atomic)
+        }
+        if let typing = session.keystrokes?.typingTimes(clock: session.clock, videoStart: start), !typing.isEmpty {
+            try? JSONEncoder().encode(typing).write(to: folder.typing, options: .atomic)
+        }
+    }
+
+    /// Turns a recording cut short by a crash into a video, from what was saved along the way.
+    func recover(_ folder: RecordingFolder) async {
+        guard state == .idle else { return }
+        state = .rendering(progress: 0)
+        defer { state = .idle }
+        do {
+            try RawRecordings.markRecovered(folder)
+            let style = Preferences.shared.outputStyle
+            let movie = try RecordingFolder.newMovieURL(fileExtension: style.format.fileExtension)
+            try await Exporter.export(folder, to: movie, style: style) { value in
+                Task { @MainActor in
+                    if case .rendering = self.state { self.state = .rendering(progress: value) }
+                }
+            }
+            NSWorkspace.shared.activateFileViewerSelecting([movie])
+        } catch {
+            onError?(error)
+        }
+    }
+
+    /// Throws the take away. With `restart` a new take of the same target begins right after.
+    func discard(restart: Bool) async {
+        guard case .recording = state, let session else { return }
+        checkpoints?.cancel()
+        state = .starting
+        _ = try? await session.screen.stop()
+        session.keystrokes?.stop()
+        session.microphone?.stop()
+        session.camera?.stop()
+        session.cameraPreview?.close()
+        _ = await session.cameraWriter?.finish()
+        session.input.stop()
+        session.window?.stop()
+        for (writer, _) in session.audio { _ = await writer.finish() }
+        try? FileManager.default.removeItem(at: session.folder.url)
+        self.session = nil
+        state = .idle
+        if restart { await start(reusing: session.target) }
+    }
+
     func stop() async {
         guard case .recording = state, let session else { return }
+        checkpoints?.cancel()
         state = .rendering(progress: 0)
         defer {
             self.session = nil
@@ -157,7 +257,20 @@ final class RecordingController: ObservableObject {
         do {
             let folder = session.folder
             let timing = try await session.screen.stop()
+            session.keystrokes?.stop()
+            if let keys = session.keystrokes?.presses(clock: session.clock, videoStart: timing.start), !keys.isEmpty {
+                try JSONEncoder().encode(keys).write(to: folder.keys)
+            }
+            if let typing = session.keystrokes?.typingTimes(clock: session.clock, videoStart: timing.start), !typing.isEmpty {
+                try JSONEncoder().encode(typing).write(to: folder.typing)
+            }
             session.microphone?.stop()
+            session.camera?.stop()
+            session.cameraPreview?.close()
+            if let start = await session.cameraWriter?.finish() {
+                try JSONEncoder().encode(CameraManifest(file: folder.camera.lastPathComponent, offset: start - timing.start))
+                    .write(to: folder.cameraManifest)
+            }
             session.input.stop()
             session.window?.stop()
 
@@ -168,12 +281,18 @@ final class RecordingController: ObservableObject {
                 }
             }
             if !tracks.isEmpty { try JSONEncoder().encode(AudioManifest(tracks: tracks)).write(to: folder.audioManifest) }
+            if var camera = folder.loadCamera(), tracks.contains(where: { $0.kind == .microphone }),
+               let lag = await Task.detached(priority: .userInitiated, operation: { await LipSync.measure(folder) }).value {
+                camera.sync = lag
+                try JSONEncoder().encode(camera).write(to: folder.cameraManifest)
+            }
 
             let log = try session.input.makeLog(clock: session.clock, videoStart: timing.start, videoEnd: timing.end,
                                                 sourceSize: session.target.pixelSize, cursorFolder: folder.cursors)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.sortedKeys]
             try encoder.encode(log).write(to: folder.log)
+            try? FileManager.default.removeItem(at: folder.partialLog)
 
             let style = Preferences.shared.outputStyle
             let movie = try RecordingFolder.newMovieURL(fileExtension: style.format.fileExtension)
@@ -182,7 +301,9 @@ final class RecordingController: ObservableObject {
                     if case .rendering = self.state { self.state = .rendering(progress: value) }
                 }
             }
-            NSWorkspace.shared.activateFileViewerSelecting([movie])
+            let after = Preferences.shared.afterRecording
+            if after != .copy { NSWorkspace.shared.activateFileViewerSelecting([movie]) }
+            if after != .reveal { Clipboard.copy(file: movie) }
             onFinished?(folder)
             Task.detached(priority: .utility) { RawRecordings.removeExpired() }
         } catch {

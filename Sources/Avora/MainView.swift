@@ -180,6 +180,13 @@ private struct RecordControl: View {
                 .help(timer.isPaused ? "Resume (\(Shortcut.togglePause.display))" : "Pause (\(Shortcut.togglePause.display))")
                 .accessibilityLabel(timer.isPaused ? "Resume Recording" : "Pause Recording")
 
+                Button { Task { await controller.discard(restart: true) } } label: {
+                    Image(systemName: "arrow.counterclockwise")
+                }
+                .buttonStyle(GhostButtonStyle())
+                .help("Start over (\(Shortcut.restart.display))")
+                .accessibilityLabel("Restart Recording")
+
                 Button { Task { await controller.toggle() } } label: {
                     HStack(spacing: 9) {
                         RoundedRectangle(cornerRadius: 2).fill(Brand.ink).frame(width: 10, height: 10)

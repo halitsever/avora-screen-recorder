@@ -18,6 +18,12 @@ struct ShortcutTests {
         #expect(Shortcut.togglePause.carbonModifiers == Shortcut.toggleRecording.carbonModifiers)
     }
 
+    @Test func restartUsesDeleteWithTheSameModifiers() {
+        #expect(Shortcut.restart.display == "⌃⌥⌘⌫")
+        #expect(Shortcut.restart.keyCode == UInt32(kVK_Delete))
+        #expect(Shortcut.restart.menuKey == "\u{8}")
+    }
+
     @Test func menuShowsTheSameModifiers() {
         #expect(Shortcut.toggleRecording.modifiers == [.control, .option, .command])
         #expect(Shortcut.toggleRecording.key == "r")

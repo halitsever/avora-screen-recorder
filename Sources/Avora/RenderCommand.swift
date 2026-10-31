@@ -5,7 +5,7 @@ import Foundation
 enum RenderCommand {
     static let usage = """
         usage: Avora render <recording-folder> [output] [--background <id>] [--motion-blur <0-1>]
-                            [--format h264|hevc|prores|gif]
+                            [--format h264|hevc|prores|gif] [--preset <name>] [--setting <key>=<value>]...
 
         """
 
@@ -17,8 +17,10 @@ enum RenderCommand {
         while let argument = remaining.popFirst() {
             switch argument {
             case "--background":
-                guard let id = remaining.popFirst(), let preset = BackgroundPreset.all.first(where: { $0.id == id }) else {
-                    fail("unknown background; choose one of: \(BackgroundPreset.all.map(\.id).joined(separator: ", "))", code: 64)
+                let id = remaining.popFirst() ?? ""
+                let preset = BackgroundPreset.named(id)
+                guard preset.id == BackgroundPreset.defaultID ? id == BackgroundPreset.defaultID : true else {
+                    fail("unknown background; use color:RRGGBB, image:<path>, wallpaper or one of: \(BackgroundPreset.all.map(\.id).joined(separator: ", "))", code: 64)
                 }
                 background = preset
             case "--motion-blur":
@@ -26,6 +28,17 @@ enum RenderCommand {
                     fail("--motion-blur takes a number from 0 to 1", code: 64)
                 }
                 settings.motionBlur = value
+            case "--preset":
+                guard let name = remaining.popFirst(), let preset = Preferences.shared.presets.first(where: { $0.name == name }) else {
+                    fail("--preset takes a preset saved in Avora's settings: \(Preferences.shared.presets.map(\.name).joined(separator: ", "))", code: 64)
+                }
+                settings = preset.settings
+                background = BackgroundPreset.named(preset.backgroundID)
+            case "--setting":
+                guard let pair = remaining.popFirst(), let changed = settings.setting(pair) else {
+                    fail("--setting takes key=value, for example clickEffect=ripple or padding=0.1", code: 64)
+                }
+                settings = changed
             case "--format":
                 guard let format = remaining.popFirst().flatMap(RenderSettings.Format.init(rawValue:)) else {
                     fail("--format takes one of: \(RenderSettings.Format.allCases.map(\.rawValue).joined(separator: ", "))", code: 64)
@@ -65,5 +78,26 @@ enum RenderCommand {
     private static func fail(_ message: String, code: Int32) -> Never {
         FileHandle.standardError.write(Data((message.hasSuffix("\n") ? message : message + "\n").utf8))
         exit(code)
+    }
+}
+
+extension RenderSettings {
+    /// One setting changed from `key=value` text, or nil when the key or value does not fit.
+    func setting(_ pair: String) -> RenderSettings? {
+        let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+        guard parts.count == 2,
+              let data = try? JSONEncoder().encode(self),
+              var object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object[parts[0]] != nil
+        else { return nil }
+        let text = parts[1]
+        object[parts[0]] = Bool(text).map { $0 as Any } ?? Double(text).map { $0 as Any } ?? text
+        guard let patched = try? JSONSerialization.data(withJSONObject: object),
+              let result = try? JSONDecoder().decode(RenderSettings.self, from: patched),
+              let check = try? JSONSerialization.jsonObject(with: JSONEncoder().encode(result)) as? [String: Any],
+              // Decoding falls back to defaults, so a value that did not survive the round trip was rejected.
+              let kept = check[parts[0]] as? NSObject, kept.isEqual(object[parts[0]])
+        else { return nil }
+        return result
     }
 }

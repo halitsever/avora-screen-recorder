@@ -39,3 +39,27 @@ struct FramingTests {
         #expect(rect.minX == base.minX)
     }
 }
+
+struct StageFramingTests {
+    // A 16:10 screen resting in the middle of a 9:16 canvas.
+    private let stage = CGRect(x: 60, y: 110, width: 960, height: 1700)
+    private var base: CGRect { CGRect(x: 60, y: 660, width: 960, height: 600) }
+
+    @Test func zoomGrowsUntilTheStageIsFilled() {
+        let rect = Framing.zoomedRect(base: base, scale: 2, focus01: CGPoint(x: 0.5, y: 0.5), stage: stage)
+        #expect(rect.height >= stage.height - 0.001)
+        #expect(rect.minX <= stage.minX && rect.maxX >= stage.maxX)
+        #expect(rect.minY <= stage.minY && rect.maxY >= stage.maxY)
+    }
+
+    @Test func zoomBeyondTheFillKeepsItsLevel() {
+        let rect = Framing.zoomedRect(base: base, scale: 4, focus01: CGPoint(x: 0.5, y: 0.5), stage: stage)
+        #expect(abs(rect.width - base.width * 4) < 0.001)
+    }
+
+    @Test func stageEqualToTheBaseChangesNothing() {
+        let plain = Framing.zoomedRect(base: base, scale: 2, focus01: CGPoint(x: 0.2, y: 0.7))
+        let staged = Framing.zoomedRect(base: base, scale: 2, focus01: CGPoint(x: 0.2, y: 0.7), stage: base)
+        #expect(plain == staged)
+    }
+}

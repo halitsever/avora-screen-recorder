@@ -41,9 +41,6 @@ public struct ZoomSegment: Sendable, Equatable, Codable {
         self.focus = focus
     }
 
-    public var length: Double { end - start }
-
-    public func contains(_ time: Double) -> Bool { time >= start && time <= end }
 }
 
 public enum ZoomSegments {

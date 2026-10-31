@@ -25,17 +25,23 @@ extension CMSampleBuffer {
     }
 }
 
-/// Writes one audio source to its own file while recording. The file starts at its first sample,
-/// and `start` says where that is on the recording clock.
-final class AudioTrackWriter: @unchecked Sendable {
+/// Writes one source to its own file while recording. The file starts at its first sample,
+/// and `finish` says where that is on the recording clock.
+class TrackWriter: @unchecked Sendable {
     let url: URL
+    private let fileType: AVFileType
+    private let mediaType: AVMediaType
+    private let settings: (CMFormatDescription) -> [String: Any]?
     private let lock = NSLock()
     private var writer: AVAssetWriter?
     private var input: AVAssetWriterInput?
     private var start: CMTime?
 
-    init(url: URL) {
+    init(url: URL, fileType: AVFileType, mediaType: AVMediaType, settings: @escaping (CMFormatDescription) -> [String: Any]?) {
         self.url = url
+        self.fileType = fileType
+        self.mediaType = mediaType
+        self.settings = settings
     }
 
     /// `buffer` must already be on the recording clock.
@@ -45,6 +51,11 @@ final class AudioTrackWriter: @unchecked Sendable {
             guard let input, writer?.status == .writing, input.isReadyForMoreMediaData else { return }
             input.append(buffer)
         }
+    }
+
+    /// Recording-clock time of the first sample so far.
+    var startTime: Double? {
+        lock.withLock { start?.seconds }
     }
 
     /// Recording-clock time of the first sample, or nil when nothing was written.
@@ -57,15 +68,11 @@ final class AudioTrackWriter: @unchecked Sendable {
     }
 
     private func open(for buffer: CMSampleBuffer) -> Bool {
-        guard let format = buffer.formatDescription?.audioStreamBasicDescription,
-              let writer = try? AVAssetWriter(outputURL: url, fileType: .m4a)
+        guard let format = buffer.formatDescription, let settings = settings(format),
+              let writer = try? AVAssetWriter(outputURL: url, fileType: fileType)
         else { return false }
-        let input = AVAssetWriterInput(mediaType: .audio, outputSettings: [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: format.mSampleRate,
-            AVNumberOfChannelsKey: min(Int(format.mChannelsPerFrame), 2),
-            AVEncoderBitRateKey: 192_000,
-        ])
+        writer.movieFragmentInterval = CMTime(seconds: 2, preferredTimescale: 600)
+        let input = AVAssetWriterInput(mediaType: mediaType, outputSettings: settings)
         input.expectsMediaDataInRealTime = true
         guard writer.canAdd(input) else { return false }
         writer.add(input)
@@ -73,6 +80,36 @@ final class AudioTrackWriter: @unchecked Sendable {
         writer.startSession(atSourceTime: buffer.presentationTimeStamp)
         (self.writer, self.input, start) = (writer, input, buffer.presentationTimeStamp)
         return true
+    }
+}
+
+final class AudioTrackWriter: TrackWriter, @unchecked Sendable {
+    init(url: URL) {
+        super.init(url: url, fileType: .m4a, mediaType: .audio) { format in
+            guard let audio = format.audioStreamBasicDescription else { return nil }
+            return [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: audio.mSampleRate,
+                AVNumberOfChannelsKey: min(Int(audio.mChannelsPerFrame), 2),
+                AVEncoderBitRateKey: 192_000,
+            ]
+        }
+    }
+}
+
+/// The camera at its own size, in H.264 with room to spare for the crop into the bubble.
+final class CameraTrackWriter: TrackWriter, @unchecked Sendable {
+    init(url: URL) {
+        super.init(url: url, fileType: .mov, mediaType: .video) { format in
+            let size = CMVideoFormatDescriptionGetDimensions(format)
+            guard size.width > 0, size.height > 0 else { return nil }
+            return [
+                AVVideoCodecKey: AVVideoCodecType.h264,
+                AVVideoWidthKey: Int(size.width),
+                AVVideoHeightKey: Int(size.height),
+                AVVideoCompressionPropertiesKey: [AVVideoAverageBitRateKey: Int(size.width) * Int(size.height) * 6],
+            ]
+        }
     }
 }
 

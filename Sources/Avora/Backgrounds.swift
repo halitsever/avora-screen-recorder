@@ -1,3 +1,4 @@
+import AppKit
 import CoreImage
 import CoreImage.CIFilterBuiltins
 
@@ -5,6 +6,15 @@ struct RGB: Equatable {
     let hex: UInt32
 
     init(_ hex: UInt32) { self.hex = hex }
+
+    /// Six hex digits, with or without a leading #.
+    init?(hexString: String) {
+        let digits = hexString.hasPrefix("#") ? String(hexString.dropFirst()) : hexString
+        guard digits.count == 6, let value = UInt32(digits, radix: 16) else { return nil }
+        hex = value
+    }
+
+    var hexString: String { String(format: "%06X", hex) }
 
     func ciColor(alpha: Double = 1) -> CIColor {
         CIColor(red: Double(hex >> 16 & 0xFF) / 255, green: Double(hex >> 8 & 0xFF) / 255,
@@ -25,6 +35,9 @@ enum BackgroundFill: Equatable {
     case linear(from: RGB, to: RGB)
     case radial(center: CGPoint, radius: Double, inner: RGB, outer: RGB)
     case mesh(base: RGB, blobs: [Blob])
+    case solid(RGB)
+    /// A picture scaled to cover the canvas and centered.
+    case image(URL)
 }
 
 struct BackgroundPreset: Identifiable, Equatable {
@@ -55,9 +68,29 @@ struct BackgroundPreset: Identifiable, Equatable {
         BackgroundPreset(id: "indigo", name: "Indigo", fill: .linear(from: RGB(0x0EA5E9), to: RGB(0x7C3AED))),
     ]
 
+    /// Presets by id, plus `color:RRGGBB`, `image:<path>` and `wallpaper`. Anything unknown
+    /// falls back to the default gradient.
     static func named(_ id: String?) -> BackgroundPreset {
-        all.first { $0.id == id } ?? all.first { $0.id == defaultID }!
+        let fallback = all.first { $0.id == defaultID }!
+        guard let id else { return fallback }
+        if let preset = all.first(where: { $0.id == id }) { return preset }
+        if id.hasPrefix(colorPrefix), let color = RGB(hexString: String(id.dropFirst(colorPrefix.count))) {
+            return BackgroundPreset(id: colorPrefix + color.hexString, name: "Color", fill: .solid(color))
+        }
+        if id.hasPrefix(imagePrefix) {
+            let url = URL(fileURLWithPath: String(id.dropFirst(imagePrefix.count)))
+            return BackgroundPreset(id: id, name: url.deletingPathExtension().lastPathComponent, fill: .image(url))
+        }
+        if id == wallpaperID, let screen = NSScreen.main, let url = NSWorkspace.shared.desktopImageURL(for: screen) {
+            return BackgroundPreset(id: id, name: "Wallpaper", fill: .image(url))
+        }
+        return fallback
     }
+
+    static let colorPrefix = "color:"
+    static let imagePrefix = "image:"
+    static let wallpaperID = "wallpaper"
+
 
     /// Renders the backdrop in Core Image space (bottom-left origin), cropped to `size`.
     func image(size: CGSize) -> CIImage {
@@ -85,6 +118,19 @@ struct BackgroundPreset: Identifiable, Equatable {
                     .composited(over: image)
             }
             .cropped(to: bounds)
+
+        case let .solid(color):
+            return CIImage(color: color.ciColor()).cropped(to: bounds)
+
+        case let .image(url):
+            guard let picture = CIImage(contentsOf: url), picture.extent.width > 0, picture.extent.height > 0 else {
+                return Self.named(nil).image(size: size)
+            }
+            let scale = max(size.width / picture.extent.width, size.height / picture.extent.height)
+            let scaled = picture.transformed(by: CGAffineTransform(translationX: -picture.extent.minX, y: -picture.extent.minY)
+                .concatenating(CGAffineTransform(scaleX: scale, y: scale)))
+            let offset = CGAffineTransform(translationX: (size.width - scaled.extent.width) / 2, y: (size.height - scaled.extent.height) / 2)
+            return scaled.transformed(by: offset).cropped(to: bounds)
         }
     }
 

@@ -69,3 +69,56 @@ struct RenderSettingsTests {
         #expect(Preferences(defaults: defaults).settings.motionBlur == 0.25)
     }
 }
+
+struct RenderSettingTextTests {
+    @Test func textSettingsChangeOneValue() {
+        #expect(RenderSettings().setting("clickEffect=ripple")?.clickEffect == .ripple)
+        #expect(RenderSettings().setting("padding=0.1")?.padding == 0.1)
+        #expect(RenderSettings().setting("hidesIdleCursor=true")?.hidesIdleCursor == true)
+    }
+
+    @Test func unknownKeysAndBadValuesAreRejected() {
+        #expect(RenderSettings().setting("sparkles=on") == nil)
+        #expect(RenderSettings().setting("clickEffect=fireworks") == nil)
+        #expect(RenderSettings().setting("padding") == nil)
+    }
+}
+
+struct AspectRatioTests {
+    private let source = CGSize(width: 3456, height: 2234)
+
+    private func style(_ aspect: RenderSettings.Aspect, _ resolution: RenderSettings.Resolution = .fullHD) -> OutputStyle {
+        var settings = RenderSettings()
+        settings.aspect = aspect
+        settings.resolution = resolution
+        return OutputStyle(settings: settings, background: .named(nil))
+    }
+
+    @Test func autoKeepsTheRecordingShape() {
+        #expect(style(.auto).canvasSize(for: source) == CGSize(width: 1670, height: 1080))
+    }
+
+    @Test func landscapeRatiosSetTheHeight() {
+        #expect(style(.wide).canvasSize(for: source) == CGSize(width: 1920, height: 1080))
+        #expect(style(.square).canvasSize(for: source) == CGSize(width: 1080, height: 1080))
+    }
+
+    @Test func portraitRatiosSetTheWidth() {
+        #expect(style(.vertical).canvasSize(for: source) == CGSize(width: 1080, height: 1920))
+        #expect(style(.feed).canvasSize(for: source) == CGSize(width: 1080, height: 1350))
+    }
+
+    @Test func outputStaysWithin4K() {
+        let size = style(.vertical, .uhd).canvasSize(for: source)
+        #expect(max(size.width, size.height) <= 3840)
+    }
+
+    @Test func screenKeepsItsShapeInsideAnotherRatio() {
+        let style = style(.vertical)
+        let canvas = style.canvasSize(for: source)
+        let base = style.baseRect(in: canvas, source: source)
+        #expect(abs(base.width / base.height - source.width / source.height) < 0.01)
+        #expect(abs(base.midX - canvas.width / 2) < 1 && abs(base.midY - canvas.height / 2) < 1)
+        #expect(base.width <= canvas.width * (1 - 2 * style.padding) + 1)
+    }
+}

@@ -2,13 +2,16 @@ import AppKit
 import Carbon.HIToolbox
 
 struct Shortcut {
+    /// What the shortcut shows; also the menu key equivalent unless `menuKey` says otherwise.
     let key: String
     let keyCode: UInt32
     let modifiers: NSEvent.ModifierFlags
+    var menuKey: String?
 
     /// ⌘R alone would steal Reload from every app, so recording uses a combo almost nothing else claims.
     static let toggleRecording = Shortcut(key: "r", keyCode: UInt32(kVK_ANSI_R), modifiers: [.control, .option, .command])
     static let togglePause = Shortcut(key: "p", keyCode: UInt32(kVK_ANSI_P), modifiers: [.control, .option, .command])
+    static let restart = Shortcut(key: "⌫", keyCode: UInt32(kVK_Delete), modifiers: [.control, .option, .command], menuKey: "\u{8}")
 
     var carbonModifiers: UInt32 {
         var flags = 0
