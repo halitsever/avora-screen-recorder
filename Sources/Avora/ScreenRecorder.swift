@@ -114,6 +114,8 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         }
 
         let writer = try AVAssetWriter(outputURL: url, fileType: .mov)
+        // Written in fragments, so the file stays readable if Avora stops without finishing it.
+        writer.movieFragmentInterval = CMTime(seconds: 2, preferredTimescale: 600)
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: Self.videoSettings(for: target.pixelSize))
         input.expectsMediaDataInRealTime = true
         writer.add(input)
@@ -125,6 +127,11 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         if systemAudio != nil { try stream.addStreamOutput(self, type: .audio, sampleHandlerQueue: audioQueue) }
         try await stream.startCapture()
         self.stream = stream
+    }
+
+    /// Recording-clock time of the first frame, once there is one.
+    var startTime: Double? {
+        queue.sync { firstFrameTime?.seconds }
     }
 
     /// Repeats the newest frame at the resume point; capture only sends frames when the screen changes.

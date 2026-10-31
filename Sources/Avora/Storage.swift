@@ -15,20 +15,39 @@ struct RecordingFolder {
 
     var video: URL { url.appending(path: "screen.mov") }
     var log: URL { url.appending(path: "input.json") }
+    /// Input written while recording, so a crash still leaves something to recover.
+    var partialLog: URL { url.appending(path: "input.partial.json") }
     var cursors: URL { url.appending(path: "cursors", directoryHint: .isDirectory) }
     var microphone: URL { url.appending(path: "microphone.m4a") }
     var systemAudio: URL { url.appending(path: "system-audio.m4a") }
     var audioManifest: URL { url.appending(path: "audio.json") }
-    var edits: URL { url.appending(path: "edits.json") }
+    var camera: URL { url.appending(path: "camera.mov") }
+    var cameraManifest: URL { url.appending(path: "camera.json") }
+    var keys: URL { url.appending(path: "keys.json") }
+    var typing: URL { url.appending(path: "typing.json") }
 
-    /// Zooms changed in the editor; nil until the recording has been edited.
-    func loadEdits() -> [ZoomSegment]? {
-        guard let data = try? Data(contentsOf: edits) else { return nil }
-        return try? JSONDecoder().decode(ZoomEdits.self, from: data).segments
+    func loadTyping() -> [Double] {
+        (try? Data(contentsOf: typing)).flatMap { try? JSONDecoder().decode([Double].self, from: $0) } ?? []
     }
 
-    func save(edits segments: [ZoomSegment]) throws {
-        try JSONEncoder().encode(ZoomEdits(segments: segments)).write(to: edits, options: .atomic)
+    func loadKeys() -> [KeyPress] {
+        (try? Data(contentsOf: keys)).flatMap { try? JSONDecoder().decode([KeyPress].self, from: $0) } ?? []
+    }
+
+    /// The camera file and where it starts; nil when the recording has no camera.
+    func loadCamera() -> CameraManifest? {
+        (try? Data(contentsOf: cameraManifest)).flatMap { try? JSONDecoder().decode(CameraManifest.self, from: $0) }
+    }
+    var edits: URL { url.appending(path: "edits.json") }
+
+    /// What the editor changed; nil until the recording has been edited.
+    func loadEdits() -> RecordingEdits? {
+        guard let data = try? Data(contentsOf: edits) else { return nil }
+        return try? JSONDecoder().decode(RecordingEdits.self, from: data)
+    }
+
+    func save(_ changes: RecordingEdits) throws {
+        try JSONEncoder().encode(changes).write(to: edits, options: .atomic)
     }
 
     static func makeNew() throws -> RecordingFolder {
@@ -51,9 +70,62 @@ struct RecordingFolder {
     }
 }
 
-private struct ZoomEdits: Codable {
-    var version = 1
-    var segments: [ZoomSegment]
+/// Everything changed in the editor for one recording, saved next to it as edits.json.
+struct RecordingEdits: Equatable {
+    /// nil keeps the zooms made from the clicks.
+    var zooms: [ZoomSegment]?
+    var cursorHidden: [TimeRange] = []
+    var camera: [CameraSpan] = []
+    var masks: [Mask] = []
+    /// nil until the recording has been transcribed.
+    var captions: [Caption]?
+    /// Part of the recording to keep, as fractions with a top-left origin; nil keeps all of it.
+    var crop: CGRect?
+    /// Kept parts of the recording and their speed; nil keeps all of it at normal speed.
+    var clips: [Clip]?
+
+    func clipList(duration: Double) -> ClipList {
+        clips.map { ClipList(segments: $0, duration: duration) } ?? .whole(duration: duration)
+    }
+
+    /// `crop` in source pixels, kept inside the recording and even for the encoders.
+    static func cropPixels(_ crop: CGRect, source: CGSize) -> CGRect {
+        let even = { (value: Double) in (value / 2).rounded(.down) * 2 }
+        let x = (crop.minX * source.width).rounded(), y = (crop.minY * source.height).rounded()
+        let width = even(min(crop.width * source.width, source.width - x))
+        let height = even(min(crop.height * source.height, source.height - y))
+        return CGRect(x: x, y: y, width: max(width, 2), height: max(height, 2))
+    }
+}
+
+extension RecordingEdits: Codable {
+    private enum Key: String, CodingKey { case version, zooms, segments, cursorHidden, camera, cameraHidden, masks, captions, crop, clips }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: Key.self)
+        // The first version of the file only held zooms, under "segments".
+        zooms = try c.decodeIfPresent([ZoomSegment].self, forKey: .zooms) ?? c.decodeIfPresent([ZoomSegment].self, forKey: .segments)
+        cursorHidden = try c.decodeIfPresent([TimeRange].self, forKey: .cursorHidden) ?? []
+        // Version 2 could only hide the camera.
+        camera = try c.decodeIfPresent([CameraSpan].self, forKey: .camera)
+            ?? (c.decodeIfPresent([TimeRange].self, forKey: .cameraHidden) ?? []).map { CameraSpan(start: $0.start, end: $0.end, layout: .hidden) }
+        masks = try c.decodeIfPresent([Mask].self, forKey: .masks) ?? []
+        captions = try c.decodeIfPresent([Caption].self, forKey: .captions)
+        crop = try c.decodeIfPresent(CGRect.self, forKey: .crop)
+        clips = try c.decodeIfPresent([Clip].self, forKey: .clips)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: Key.self)
+        try c.encode(3, forKey: .version)
+        try c.encodeIfPresent(zooms, forKey: .zooms)
+        try c.encode(cursorHidden, forKey: .cursorHidden)
+        try c.encode(camera, forKey: .camera)
+        try c.encode(masks, forKey: .masks)
+        try c.encodeIfPresent(captions, forKey: .captions)
+        try c.encodeIfPresent(crop, forKey: .crop)
+        try c.encodeIfPresent(clips, forKey: .clips)
+    }
 }
 
 /// Raw recordings are kept so they can be rendered again, but only for a week.
@@ -78,6 +150,20 @@ enum RawRecordings {
             .map(RecordingFolder.init(url:))
             .filter { FileManager.default.fileExists(atPath: $0.video.path) && FileManager.default.fileExists(atPath: $0.log.path) }
             .max { created($0.url) < created($1.url) }
+    }
+
+    /// Recordings cut short by a crash: screen video and input saved along the way, never finished.
+    static func unfinished(in root: URL = root) -> [RecordingFolder] {
+        let exists = { (url: URL) in FileManager.default.fileExists(atPath: url.path) }
+        return recordings(in: root)
+            .map(RecordingFolder.init(url:))
+            .filter { exists($0.video) && exists($0.partialLog) && !exists($0.log) }
+            .sorted { created($0.url) < created($1.url) }
+    }
+
+    /// Makes the input saved along the way the recording's input, so it exports like any other.
+    static func markRecovered(_ folder: RecordingFolder) throws {
+        try FileManager.default.moveItem(at: folder.partialLog, to: folder.log)
     }
 
     private static func created(_ url: URL) -> Date {

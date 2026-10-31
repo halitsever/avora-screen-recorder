@@ -12,6 +12,8 @@ public struct FrameState: Sendable, Equatable {
 public struct Director: Sendable {
     public var log: InputLog
     public var base: CGRect
+    /// The area a zoom must fill; nil uses `base`.
+    public var stage: CGRect?
     public var zoom: ZoomConfig
     /// Zooms edited by hand. nil makes them from the clicks.
     public var segments: [ZoomSegment]?
@@ -25,6 +27,7 @@ public struct Director: Sendable {
     public init(
         log: InputLog,
         base: CGRect,
+        stage: CGRect? = nil,
         zoom: ZoomConfig = ZoomConfig(),
         segments: [ZoomSegment]? = nil,
         screenSpring: SpringConfig = .screen,
@@ -32,6 +35,7 @@ public struct Director: Sendable {
     ) {
         self.log = log
         self.base = base
+        self.stage = stage
         self.zoom = zoom
         self.segments = segments
         self.screenSpring = screenSpring
@@ -105,14 +109,14 @@ public struct Director: Sendable {
         guard let active = plan.first(where: { $0.segment.contains(time) }) else { return base }
         if let manual = active.segment.focus {
             return Framing.zoomedRect(base: base, scale: active.segment.scale,
-                                      focus01: CGPoint(x: min(max(manual.x, 0), 1), y: min(max(manual.y, 0), 1)))
+                                      focus01: CGPoint(x: min(max(manual.x, 0), 1), y: min(max(manual.y, 0), 1)), stage: stage)
         }
         guard let focus = FocusPlanner.focus(at: time, in: active.clusters) else { return base }
         let focus01 = CGPoint(
             x: min(max(focus.x / log.sourceSize.width, 0), 1),
             y: min(max(focus.y / log.sourceSize.height, 0), 1)
         )
-        return Framing.zoomedRect(base: base, scale: active.segment.scale, focus01: focus01)
+        return Framing.zoomedRect(base: base, scale: active.segment.scale, focus01: focus01, stage: stage)
     }
 
     /// Starts springs at rest on the first target, then advances them every frame.

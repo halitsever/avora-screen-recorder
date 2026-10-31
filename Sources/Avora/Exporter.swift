@@ -39,7 +39,20 @@ enum Exporter {
         progress: @escaping @Sendable (Double) -> Void = { _ in }
     ) async throws {
         let log = try JSONDecoder().decode(InputLog.self, from: Data(contentsOf: folder.log))
-        let renderer = FrameRenderer(log: log, cursorFolder: folder.cursors, style: style, segments: folder.loadEdits())
+        var edits = folder.loadEdits()
+        if style.burnsCaptions || style.savesSubtitles, edits?.captions == nil {
+            // A failed transcription still leaves a video, just without captions.
+            do {
+                var changed = edits ?? RecordingEdits()
+                changed.captions = try await Captioner.transcribe(folder, locale: style.captionLocale)
+                try folder.save(changed)
+                edits = changed
+            } catch {
+                NSLog("Avora: captions skipped: \(error.localizedDescription)")
+            }
+        }
+        let clips = edits?.clipList(duration: log.duration) ?? .whole(duration: log.duration)
+        let renderer = FrameRenderer(log: log, cursorFolder: folder.cursors, style: style, edits: edits, keys: folder.loadKeys())
         let asset = AVURLAsset(url: folder.video)
         guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw ExportError.noVideoTrack }
 
@@ -56,15 +69,19 @@ enum Exporter {
         let sink: FrameSink = style.format == .gif
             ? try GIFSink(url: output, size: renderer.canvas, fps: style.fps)
             : try MovieSink(url: output, size: renderer.canvas, style: style,
-                            audio: try await AudioMixSource.make(for: folder, duration: log.duration))
+                            audio: try await AudioMixSource.make(for: folder, duration: log.duration, clips: clips, voice: style.voice))
 
-        let frameCount = max(Int(log.duration * style.fps), 1)
+        let camera = try await CameraFrames(folder: folder)
+        defer { camera?.cancel() }
+
+        let frameCount = max(Int(clips.outputDuration * style.fps), 1)
         var current: CMSampleBuffer?
         var upcoming = source.copyNextSampleBuffer()
 
         for index in 0..<frameCount {
             try Task.checkCancellation()
-            let time = Double(index) / style.fps
+            // Clips only move forward through the recording, so frames can still be read in order.
+            let time = clips.sourceTime(atOutput: Double(index) / style.fps)
 
             // Hold the newest source frame that has started by `time`.
             while let next = upcoming, next.presentationTimeStamp.seconds <= time + 0.0005 {
@@ -73,11 +90,15 @@ enum Exporter {
             }
             guard let frame = (current ?? upcoming).flatMap(CMSampleBufferGetImageBuffer) else { continue }
 
-            try await sink.append(renderer.render(source: CIImage(cvPixelBuffer: frame), at: time), index: index)
+            let image = renderer.render(source: CIImage(cvPixelBuffer: frame), camera: camera?.frame(at: time), at: time)
+            try await sink.append(image, index: index)
             if index % 15 == 0 { progress(Double(index) / Double(frameCount)) }
         }
 
         try await sink.finish()
+        if style.savesSubtitles, let captions = edits?.captions, !captions.isEmpty {
+            try SubRip.make(captions, clips: clips).write(to: output.deletingPathExtension().appendingPathExtension("srt"), atomically: true, encoding: .utf8)
+        }
         progress(1)
     }
 }
@@ -92,6 +113,7 @@ private final class MovieSink: FrameSink {
     private let input: AVAssetWriterInput
     private let adaptor: AVAssetWriterInputPixelBufferAdaptor
     private let audioDone = DispatchGroup()
+    private var frames = 0
     private let size: CGSize
     private let fps: Double
     private let context = CIContext(options: [.cacheIntermediates: false])
@@ -152,11 +174,14 @@ private final class MovieSink: FrameSink {
         context.render(image, to: buffer, bounds: CGRect(origin: .zero, size: size), colorSpace: colorSpace)
         let stamp = CMTime(value: CMTimeValue(index), timescale: CMTimeScale(fps))
         guard adaptor.append(buffer, withPresentationTime: stamp) else { throw ExportError.writer(writer.error) }
+        frames = index + 1
     }
 
     func finish() async throws {
         input.markAsFinished()
         await withCheckedContinuation { done in audioDone.notify(queue: .global()) { done.resume() } }
+        // Sound that runs past the last frame is trimmed, so audio and video end together.
+        writer.endSession(atSourceTime: CMTime(value: CMTimeValue(frames), timescale: CMTimeScale(fps)))
         await writer.finishWriting()
         guard writer.status == .completed else { throw ExportError.writer(writer.error) }
     }
@@ -247,5 +272,41 @@ private final class GIFSink: FrameSink {
 
     func finish() async throws {
         guard CGImageDestinationFinalize(destination) else { throw ExportError.writer(nil) }
+    }
+}
+
+/// Reads the camera file in step with the screen, holding the newest frame that has started.
+private final class CameraFrames {
+    private let reader: AVAssetReader
+    private let output: AVAssetReaderTrackOutput
+    private let offset: Double
+    private var current: CMSampleBuffer?
+    private var upcoming: CMSampleBuffer?
+
+    init?(folder: RecordingFolder) async throws {
+        guard let manifest = folder.loadCamera() else { return nil }
+        let asset = AVURLAsset(url: folder.url.appending(path: manifest.file))
+        guard let track = try await asset.loadTracks(withMediaType: .video).first else { return nil }
+        reader = try AVAssetReader(asset: asset)
+        output = AVAssetReaderTrackOutput(track: track, outputSettings: [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA])
+        output.alwaysCopiesSampleData = false
+        reader.add(output)
+        offset = manifest.syncedOffset
+        guard reader.startReading() else { throw ExportError.reader(reader.error) }
+        upcoming = output.copyNextSampleBuffer()
+    }
+
+    /// `time` is in the recording; nil before the camera's first frame.
+    func frame(at time: Double) -> CIImage? {
+        let local = time - offset
+        while let next = upcoming, next.presentationTimeStamp.seconds <= local + 0.0005 {
+            current = next
+            upcoming = output.copyNextSampleBuffer()
+        }
+        return current.flatMap(CMSampleBufferGetImageBuffer).map { CIImage(cvPixelBuffer: $0) }
+    }
+
+    func cancel() {
+        reader.cancelReading()
     }
 }

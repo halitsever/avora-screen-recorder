@@ -52,7 +52,20 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
     /// Editor shortcuts, active only while this window is in front.
     private func keyMonitor(for window: NSWindow, model: EditorModel) -> Any? {
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak window] event in
-            guard event.window === window, event.modifierFlags.intersection([.command, .control, .option]).isEmpty else { return event }
+            guard event.window === window else { return event }
+            // Typing into a caption keeps its spaces and backspaces.
+            if window?.firstResponder is NSTextView { return event }
+            let modifiers = event.modifierFlags.intersection([.command, .control, .option, .shift])
+            if modifiers.contains(.command) {
+                switch (event.charactersIgnoringModifiers?.lowercased(), modifiers) {
+                case ("z", [.command]): model.undo()
+                case ("z", [.command, .shift]): model.redo()
+                case ("c", [.command]): Task { await model.copyFrame() }
+                default: return event
+                }
+                return nil
+            }
+            guard modifiers.subtracting(.shift).isEmpty else { return event }
             switch event.keyCode {
             case 49:
                 model.togglePlay()
@@ -60,6 +73,8 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
                 model.removeSelected()
             case 53:
                 model.selection = nil
+            case 1:
+                model.splitAtPlayhead()
             default:
                 guard let digit = event.charactersIgnoringModifiers.flatMap(Int.init), (1...9).contains(digit) else { return event }
                 model.setLevel(1 + Double(digit - 1) * 0.2)

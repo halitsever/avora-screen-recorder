@@ -1,4 +1,5 @@
 import AVFoundation
+import ZoomEngine
 
 /// The audio files of one raw recording and where each starts, in seconds after the first video frame.
 struct AudioManifest: Codable {
@@ -60,29 +61,36 @@ final class AudioMixSource {
         self.gain = gain
     }
 
-    /// nil when the recording has no audio.
-    static func make(for folder: RecordingFolder, duration: Double) async throws -> AudioMixSource? {
-        let composition = AVMutableComposition()
-        guard let audio = try await addAudio(from: folder, duration: duration, to: composition) else { return nil }
-        let reader = try AVAssetReader(asset: composition)
-        reader.timeRange = CMTimeRange(start: .zero, duration: .seconds(duration))
-        let output = AVAssetReaderAudioMixOutput(audioTracks: audio.tracks, audioSettings: pcmSettings)
-        output.audioMix = audio.mix
+    /// The recording's sound on the video's timeline; nil when the recording has no audio.
+    /// `duration` is the recording's length; without `clips` all of it is used.
+    static func make(for folder: RecordingFolder, duration: Double, clips: ClipList? = nil, voice: VoicePreset = .standard) async throws -> AudioMixSource? {
+        let timeline = try await TimelineComposition.make(for: folder, sourceDuration: duration,
+                                                          clips: clips ?? .whole(duration: duration), video: false, voice: voice)
+        guard let mix = timeline.audioMix, !timeline.audioTracks.isEmpty else { return nil }
+        let reader = try AVAssetReader(asset: timeline.composition)
+        reader.timeRange = CMTimeRange(start: .zero, duration: .seconds(timeline.duration))
+        let output = AVAssetReaderAudioMixOutput(audioTracks: timeline.audioTracks, audioSettings: pcmSettings)
+        output.audioMix = mix
+        output.audioTimePitchAlgorithm = TimelineComposition.pitchAlgorithm
         reader.add(output)
         guard reader.startReading() else { throw ExportError.reader(reader.error) }
-        return AudioMixSource(reader: reader, output: output, gain: Float(audio.outputGain))
+        return AudioMixSource(reader: reader, output: output, gain: Float(timeline.audioGain))
     }
 
-    /// Places a recording's audio files on `composition` and returns the mix that balances them.
+    /// Places a recording's audio files on `composition`, each with the volume that balances it.
     /// Mixer volumes cannot exceed 1, so a mic boost comes back as `outputGain` for the caller to apply.
-    static func addAudio(from folder: RecordingFolder, duration: Double, to composition: AVMutableComposition) async throws
-        -> (tracks: [AVMutableCompositionTrack], mix: AVMutableAudioMix, outputGain: Double)? {
+    static func addAudio(from folder: RecordingFolder, duration: Double, to composition: AVMutableComposition, voice: VoicePreset) async throws
+        -> (tracks: [(track: AVMutableCompositionTrack, volume: Float)], outputGain: Double)? {
         guard let data = try? Data(contentsOf: folder.audioManifest) else { return nil }
         let manifest = try JSONDecoder().decode(AudioManifest.self, from: data)
 
         var placed: [(track: AVMutableCompositionTrack, kind: AudioManifest.Kind, url: URL)] = []
         for entry in manifest.tracks {
-            let url = folder.url.appending(path: entry.file)
+            var url = folder.url.appending(path: entry.file)
+            if entry.kind == .microphone {
+                let raw = url
+                url = try await Task.detached { try VoiceProcessor.processed(raw, preset: voice) }.value
+            }
             let asset = AVURLAsset(url: url)
             guard let source = try await asset.loadTracks(withMediaType: .audio).first,
                   let placement = AudioPlacement(offset: entry.offset, trackDuration: try await asset.load(.duration).seconds,
@@ -98,23 +106,28 @@ final class AudioMixSource {
         guard !placed.isEmpty else { return nil }
 
         var micGain = 1.0
-        if let mic = placed.first(where: { $0.kind == .microphone }) {
+        if voice.normalizes, let mic = placed.first(where: { $0.kind == .microphone }) {
             micGain = AudioLevels.normalizingGain(peak: try await peak(of: mic.url))
         }
         let levels = AudioLevels.mix(micGain: micGain)
+        let tracks = placed.map { ($0.track, Float($0.kind == .microphone ? levels.micVolume : levels.systemVolume)) }
+        return (tracks, levels.outputGain)
+    }
+
+    static func mix(_ tracks: [(track: AVCompositionTrack, volume: Float)]) -> AVMutableAudioMix {
         let mix = AVMutableAudioMix()
-        mix.inputParameters = placed.map { entry in
+        mix.inputParameters = tracks.map { entry in
             let parameters = AVMutableAudioMixInputParameters(track: entry.track)
-            parameters.setVolume(Float(entry.kind == .microphone ? levels.micVolume : levels.systemVolume), at: .zero)
+            parameters.setVolume(entry.volume, at: .zero)
             return parameters
         }
-        return (placed.map(\.track), mix, levels.outputGain)
+        return mix
     }
 
     /// The loudest moment in each of `buckets` equal slices of the exported mix, from 0 to 1.
     /// nil when the recording has no audio.
-    static func waveform(for folder: RecordingFolder, duration: Double, buckets: Int) async throws -> [Float]? {
-        guard buckets > 0, let source = try await make(for: folder, duration: duration) else { return nil }
+    static func waveform(for folder: RecordingFolder, duration: Double, buckets: Int, voice: VoicePreset = .standard) async throws -> [Float]? {
+        guard buckets > 0, let source = try await make(for: folder, duration: duration, voice: voice) else { return nil }
         defer { source.cancel() }
         var peaks = [Float](repeating: 0, count: buckets)
         let framesPerBucket = max(duration * sampleRate / Double(buckets), 1)

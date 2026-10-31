@@ -4,7 +4,7 @@ import type { AvoraTheme } from './theme/types'
 /** Where the site is published. Set DOCS_URL for a custom domain; the base path follows from it. */
 const url = process.env.DOCS_URL ?? 'https://halitsever.github.io/avora-screen-recorder/'
 const base = new URL(url).pathname
-const description = 'A macOS screen recorder that zooms in on what you click.'
+const description = 'A macOS screen recorder that turns a raw take into a finished, shareable video.'
 
 export default defineConfigWithTheme<AvoraTheme>({
   lang: 'en-US',
@@ -19,7 +19,7 @@ export default defineConfigWithTheme<AvoraTheme>({
     // Link previews need absolute image URLs.
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:url', content: url }],
-    ['meta', { property: 'og:title', content: 'Avora: every click, in close-up' }],
+    ['meta', { property: 'og:title', content: 'Avora: your screen, already edited' }],
     ['meta', { property: 'og:description', content: description }],
     ['meta', { property: 'og:image', content: `${url}social.png` }],
     ['meta', { property: 'og:image:width', content: '1280' }],

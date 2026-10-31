@@ -25,4 +25,11 @@ struct PreferencesTests {
         defaults.set("removed-preset", forKey: Preferences.backgroundKey)
         #expect(Preferences(defaults: defaults).background.id == "avora")
     }
+
+    @Test func editorOpensAfterRecordingUntilTurnedOff() {
+        let defaults = freshDefaults()
+        #expect(Preferences(defaults: defaults).opensEditorAfterRecording)
+        Preferences(defaults: defaults).opensEditorAfterRecording = false
+        #expect(!Preferences(defaults: defaults).opensEditorAfterRecording)
+    }
 }

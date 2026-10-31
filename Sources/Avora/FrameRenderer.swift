@@ -8,6 +8,8 @@ import ZoomEngine
 struct OutputStyle {
     var fps = 60.0
     var resolution = RenderSettings.Resolution.source
+    var aspect = RenderSettings.Aspect.auto
+    var backgroundBlur = 0.0
     var maxWidth = 3840.0
     var padding = 0.06
     var cornerRadius = 0.012
@@ -22,6 +24,17 @@ struct OutputStyle {
     var background = BackgroundPreset.named(nil)
     var format = RenderSettings.Format.h264
     var quality = RenderSettings.Quality.social
+    var showsCursor = true
+    var clickEffect = RenderSettings.ClickEffect.none
+    /// Seconds of rest before the cursor fades out; nil keeps it on screen.
+    var idleDelay: Double?
+    var cursorFreeze = 0.0
+    var camera = CameraLook()
+    var showsShortcuts = false
+    var voice = VoicePreset.standard
+    var burnsCaptions = false
+    var savesSubtitles = false
+    var captionLocale = Locale.current
 
     init(background: BackgroundPreset = .named(nil)) {
         self.background = background
@@ -34,6 +47,8 @@ struct OutputStyle {
         let gif = settings.format == .gif
         fps = gif ? RenderSettings.gifFPS : Double(settings.fps)
         resolution = settings.resolution
+        aspect = settings.aspect
+        backgroundBlur = settings.backgroundBlur
         maxWidth = gif ? RenderSettings.gifMaxWidth : 3840
         padding = settings.padding
         cornerRadius = settings.cornerRadius
@@ -42,16 +57,42 @@ struct OutputStyle {
         motionBlur = settings.motionBlur
         zoomScale = settings.zoom
         cursorSpring = settings.smoothing.spring
+        showsCursor = settings.showsCursor
+        clickEffect = settings.clickEffect
+        idleDelay = settings.hidesIdleCursor ? 2 : nil
+        cursorFreeze = settings.cursorFreeze
+        camera = settings.camera
+        showsShortcuts = settings.showsShortcuts
+        voice = settings.voice
+        burnsCaptions = settings.burnsCaptions
+        savesSubtitles = settings.savesSubtitles
+        captionLocale = settings.captionLocale
     }
 
+    /// The resolution sets the short side of a fixed ratio, so vertical 1080p is 1080×1920.
     func canvasSize(for source: CGSize) -> CGSize {
-        let size = resolution.canvasSize(for: source)
+        var size = resolution.canvasSize(for: source)
+        if let ratio = aspect.ratio {
+            let short = min(size.height, size.width)
+            size = ratio >= 1 ? CGSize(width: short * ratio, height: short) : CGSize(width: short, height: short / ratio)
+            let fit = min(1, 3840 / max(size.width, size.height))
+            size = CGSize(width: size.width * fit, height: size.height * fit)
+        }
         let ratio = min(1, maxWidth / size.width)
         return CGSize(width: even(size.width * ratio), height: even(size.height * ratio))
     }
 
-    func baseRect(in canvas: CGSize) -> CGRect {
+    /// Where the screen rests: inside the padding, keeping the recording's shape, centered.
+    /// The canvas inside the padding.
+    func stageRect(in canvas: CGSize) -> CGRect {
         CGRect(origin: .zero, size: canvas).insetBy(dx: canvas.width * padding, dy: canvas.height * padding)
+    }
+
+    func baseRect(in canvas: CGSize, source: CGSize) -> CGRect {
+        let available = stageRect(in: canvas)
+        let scale = min(available.width / source.width, available.height / source.height)
+        let size = CGSize(width: source.width * scale, height: source.height * scale)
+        return CGRect(x: available.midX - size.width / 2, y: available.midY - size.height / 2, width: size.width, height: size.height)
     }
 
     private func even(_ value: Double) -> Double { (value / 2).rounded() * 2 }
@@ -74,14 +115,51 @@ final class FrameRenderer: @unchecked Sendable {
     private let cursors: [Int: CursorImage]
     private let fallbackCursor: CursorImage?
     private let background: CIImage
+    private let visibility: CursorVisibility
+    private let presses: [ClickEvent]
+    private let effect: CIImage?
+    /// The kept part of the source in Core Image space (bottom-left origin); nil keeps all of it.
+    private let crop: CGRect?
+    private let cameraSpans: [CameraSpan]
+    private let masks: [Mask]
+    private let keys: [KeyPress]
+    private let captions: [Caption]
+    private let badges = NSCache<NSString, CIImage>()
 
-    init(log: InputLog, cursorFolder: URL, style: OutputStyle, segments: [ZoomSegment]? = nil) {
+    init(log recorded: InputLog, cursorFolder: URL, style: OutputStyle, edits: RecordingEdits? = nil, keys: [KeyPress] = []) {
         self.style = style
+        self.keys = style.showsShortcuts ? keys : []
+        var log = recorded.freezingCursor(last: style.cursorFreeze)
+        var zooms = edits?.zooms
+        if let fraction = edits?.crop {
+            let pixels = RecordingEdits.cropPixels(fraction, source: log.sourceSize)
+            crop = CGRect(x: pixels.minX, y: log.sourceSize.height - pixels.maxY, width: pixels.width, height: pixels.height)
+            // Manual focus points were picked on the whole frame.
+            zooms = zooms?.map { zoom in
+                var zoom = zoom
+                zoom.focus = zoom.focus.map {
+                    CGPoint(x: ($0.x * log.sourceSize.width - pixels.minX) / pixels.width,
+                            y: ($0.y * log.sourceSize.height - pixels.minY) / pixels.height)
+                }
+                return zoom
+            }
+            log = log.cropped(to: pixels)
+        } else {
+            crop = nil
+        }
         self.log = log
+        cameraSpans = edits?.camera ?? []
+        masks = edits?.masks ?? []
+        captions = style.burnsCaptions ? edits?.captions ?? [] : []
         canvas = style.canvasSize(for: log.sourceSize)
-        base = style.baseRect(in: canvas)
-        frames = Director(log: log, base: base, zoom: ZoomConfig(scale: style.zoomScale), segments: segments, cursorSpring: style.cursorSpring)
+        base = style.baseRect(in: canvas, source: log.sourceSize)
+        // In another shape than the recording's, a zoom fills the padded canvas instead of leaving bands of backdrop.
+        let stage = style.aspect == .auto ? nil : style.stageRect(in: canvas)
+        frames = Director(log: log, base: base, stage: stage, zoom: ZoomConfig(scale: style.zoomScale), segments: zooms, cursorSpring: style.cursorSpring)
             .frames(fps: style.fps)
+        visibility = CursorVisibility(log: log, idleDelay: style.idleDelay, hidden: edits?.cursorHidden ?? [])
+        presses = log.clicks
+        effect = Self.effectImage(style.clickEffect)
 
         var cursors: [Int: CursorImage] = [:]
         for shape in log.shapes {
@@ -91,11 +169,18 @@ final class FrameRenderer: @unchecked Sendable {
         }
         self.cursors = cursors
         fallbackCursor = Self.arrowCursor()
+        var backdrop = style.background.image(size: canvas)
+        if style.backgroundBlur > 0 {
+            let bounds = CGRect(origin: .zero, size: canvas)
+            backdrop = backdrop.clampedToExtent()
+                .applyingGaussianBlur(sigma: style.backgroundBlur * 0.03 * max(canvas.width, canvas.height))
+                .cropped(to: bounds)
+        }
         // Clamped so resampling during the parallax zoom never blends transparent pixels into the edges.
-        background = style.background.image(size: canvas).clampedToExtent()
+        background = backdrop.clampedToExtent()
     }
 
-    func render(source: CIImage, at time: Double) -> CIImage {
+    func render(source: CIImage, camera: CIImage? = nil, at time: Double) -> CIImage {
         guard !frames.isEmpty else { return source }
         let index = min(max(Int((time * style.fps).rounded()), 0), frames.count - 1)
         let state = frames[index]
@@ -108,24 +193,180 @@ final class FrameRenderer: @unchecked Sendable {
             .transformed(by: scaling(1 + max(zoom - 1, 0) * style.backgroundParallax, around: parallaxAnchor(screen)))
             .cropped(to: bounds)
 
-        // One soft shadow at the current position; smearing it as well costs a blur per sample.
-        let shadowBlur = style.shadowBlur * screen.width
-        let shadow = roundedRect(flipped(screen).offsetBy(dx: 0, dy: -shadowBlur / 3), radius: style.cornerRadius * screen.width,
-                                 color: CIColor(red: 0, green: 0, blue: 0, alpha: style.shadowOpacity))
-            .applyingGaussianBlur(sigma: shadowBlur)
-        output = shadow.composited(over: output)
-
-        let placed = source.clampedToExtent()
+        // Masks are placed on the whole recorded frame, so they go on before the crop.
+        let source = Masking.apply(masks, to: source, at: time)
+        let kept = crop.map { source.cropped(to: $0).transformed(by: CGAffineTransform(translationX: -$0.minX, y: -$0.minY)) } ?? source
+        let placed = kept.clampedToExtent()
         let trail = MotionTrail.rects(from: previous.screenRect, to: screen, amount: style.motionBlur, fps: style.fps)
-        output = Self.average(trail.map { screenLayer(placed, at: $0) }).composited(over: output)
+        var content = Self.average(trail.map { screenLayer(placed, at: $0) })
 
-        if let tip = cursorTip(state), let cursor = state.cursorShape.flatMap({ cursors[$0] }) ?? fallbackCursor {
+        let opacity = style.showsCursor ? visibility.opacity(at: time) : 0
+        if opacity > 0, let effects = clickEffects(at: time, screen: screen) {
+            content = effects.composited(over: content)
+        }
+        if opacity > 0, let tip = cursorTip(state), let cursor = state.cursorShape.flatMap({ cursors[$0] }) ?? fallbackCursor {
             let tips = cursorTip(previous).map {
                 MotionTrail.points(from: $0, to: tip, amount: style.motionBlur, fps: style.fps)
             } ?? [tip]
-            output = Self.average(tips.map { cursorLayer(cursor, tip: $0, screen: screen) }).composited(over: output)
+            // A pressed button shrinks the cursor a little, the way a real click feels.
+            let pressed = presses.last { $0.time <= time }?.isDown == true
+            let layer = Self.average(tips.map { cursorLayer(cursor, tip: $0, screen: screen, scale: pressed ? 0.9 : 1) })
+            content = Self.fade(layer, to: opacity).composited(over: content)
+        }
+
+        // Side by side, the whole screen moves into its card and zooms stay inside it.
+        let arrangement = camera == nil ? nil : CameraLayout.arrangement(at: time, spans: cameraSpans)
+        var shadowRect = screen
+        if let arrangement, arrangement.layout == .split, arrangement.amount > 0 {
+            let amount = arrangement.amount
+            let card = CameraLayout.split(canvas: canvas, source: log.sourceSize).screen
+            let scale = 1 + (card.width / base.width - 1) * amount
+            let shift = CGPoint(x: (card.minX - card.width / base.width * base.minX) * amount,
+                                y: (card.minY - card.width / base.width * base.minY) * amount)
+            let clip = Self.mix(bounds, card, amount)
+            content = content
+                .transformed(by: CGAffineTransform(scaleX: scale, y: scale)
+                    .concatenating(CGAffineTransform(translationX: shift.x, y: canvas.height * (1 - scale) - shift.y)))
+                .applyingFilter("CISourceInCompositing", parameters: [
+                    kCIInputBackgroundImageKey: roundedRect(flipped(clip), radius: style.cornerRadius * card.width * amount, color: .white),
+                ])
+            let moved = CGRect(x: screen.minX * scale + shift.x, y: screen.minY * scale + shift.y,
+                               width: screen.width * scale, height: screen.height * scale)
+            shadowRect = moved.intersection(clip)
+        }
+
+        // One soft shadow at the current position; smearing it as well costs a blur per sample.
+        let shadowBlur = style.shadowBlur * shadowRect.width
+        let shadow = roundedRect(flipped(shadowRect).offsetBy(dx: 0, dy: -shadowBlur / 3), radius: style.cornerRadius * shadowRect.width,
+                                 color: CIColor(red: 0, green: 0, blue: 0, alpha: style.shadowOpacity))
+            .applyingGaussianBlur(sigma: shadowBlur)
+        output = content.composited(over: shadow.composited(over: output))
+
+        if let camera, let layer = cameraLayer(camera, zoom: zoom, arrangement: arrangement) {
+            output = layer.composited(over: output)
+        }
+        if let shortcut = KeystrokeOverlay.visible(at: time, in: keys) {
+            output = shortcutBadge(shortcut.label, opacity: shortcut.opacity).composited(over: output)
+        }
+        if let caption = captions.first(where: { $0.contains(time) }) {
+            output = captionBadge(caption.text).composited(over: output)
         }
         return output.cropped(to: bounds)
+    }
+
+    /// Captions sit above where the shortcut badge goes, so both can show at once.
+    private func captionBadge(_ text: String) -> CIImage {
+        let key = "caption:" + text as NSString
+        let badge = badges.object(forKey: key) ?? {
+            let made = CaptionOverlay.badge(text, canvas: canvas)
+            badges.setObject(made, forKey: key)
+            return made
+        }()
+        return badge.transformed(by: CGAffineTransform(translationX: (canvas.width - badge.extent.width) / 2, y: canvas.height * 0.14))
+    }
+
+    /// The last shortcut, centered near the bottom of the canvas.
+    private func shortcutBadge(_ label: String, opacity: Double) -> CIImage {
+        let badge = badges.object(forKey: label as NSString) ?? {
+            let made = KeystrokeOverlay.badge(label, canvas: canvas)
+            badges.setObject(made, forKey: label as NSString)
+            return made
+        }()
+        let placed = badge.transformed(by: CGAffineTransform(translationX: (canvas.width - badge.extent.width) / 2, y: canvas.height * 0.06))
+        return Self.fade(placed, to: opacity)
+    }
+
+    /// The camera on top of everything, filled edge to edge. As a bubble it shrinks during zooms;
+    /// in a layout it grows from the bubble into its card or the whole canvas.
+    private func cameraLayer(_ camera: CIImage, zoom: Double, arrangement: (layout: CameraSpan.Layout, amount: Double)?) -> CIImage? {
+        let opacity = arrangement?.layout == .hidden ? 1 - arrangement!.amount : 1
+        guard opacity > 0, camera.extent.width > 0, camera.extent.height > 0 else { return nil }
+        let progress = min(max((zoom - 1) / max(style.zoomScale - 1, 0.01), 0), 1)
+        let bubble = CameraLayout.frame(canvas: canvas, look: style.camera, zoomProgress: progress)
+        var rect = flipped(bubble)
+        var radius = CameraLayout.cornerRadius(bubble, look: style.camera)
+        if let arrangement, arrangement.layout != .hidden {
+            let target: (rect: CGRect, radius: Double)
+            if arrangement.layout == .split {
+                let cards = CameraLayout.split(canvas: canvas, source: log.sourceSize)
+                target = (cards.camera, style.cornerRadius * cards.screen.width)
+            } else {
+                target = (CGRect(origin: .zero, size: canvas), 0)
+            }
+            rect = flipped(Self.mix(bubble, target.rect, arrangement.amount))
+            radius += (target.radius - radius) * arrangement.amount
+        }
+
+        var picture = camera.transformed(by: CGAffineTransform(translationX: -camera.extent.minX, y: -camera.extent.minY))
+        if style.camera.mirrored {
+            picture = picture.transformed(by: CGAffineTransform(scaleX: -1, y: 1).translatedBy(x: -picture.extent.width, y: 0))
+        }
+        let scale = max(rect.width / picture.extent.width, rect.height / picture.extent.height)
+        let scaled = picture.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        let placed = scaled.transformed(by: CGAffineTransform(translationX: rect.midX - scaled.extent.width / 2,
+                                                              y: rect.midY - scaled.extent.height / 2))
+        let clipped = placed.applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: roundedRect(rect, radius: radius, color: .white)])
+        let blur = style.shadowBlur * rect.width
+        let shadow = roundedRect(rect.offsetBy(dx: 0, dy: -blur / 3), radius: radius,
+                                 color: CIColor(red: 0, green: 0, blue: 0, alpha: style.shadowOpacity))
+            .applyingGaussianBlur(sigma: blur)
+        return Self.fade(clipped.composited(over: shadow), to: opacity)
+    }
+
+    /// Hidden spans fade the camera out over their first quarter second and back in over their last.
+    static func cameraOpacity(at time: Double, spans: [CameraSpan]) -> Double {
+        guard let arrangement = CameraLayout.arrangement(at: time, spans: spans), arrangement.layout == .hidden else { return 1 }
+        return 1 - arrangement.amount
+    }
+
+    static func mix(_ from: CGRect, _ to: CGRect, _ amount: Double) -> CGRect {
+        CGRect(x: from.minX + (to.minX - from.minX) * amount, y: from.minY + (to.minY - from.minY) * amount,
+               width: from.width + (to.width - from.width) * amount, height: from.height + (to.height - from.height) * amount)
+    }
+
+    /// Up to three recent clicks, each a disc or ring that grows and fades where it happened.
+    private func clickEffects(at time: Double, screen: CGRect) -> CIImage? {
+        guard let effect, style.clickEffect != .none else { return nil }
+        let duration = style.clickEffect.duration
+        let recent = presses.filter { $0.isDown && time >= $0.time && time - $0.time <= duration }.suffix(3)
+        guard !recent.isEmpty else { return nil }
+        let canvasPerSourcePixel = screen.width / log.sourceSize.width
+        let canvasPerPoint = canvasPerSourcePixel * log.pointPixelScale * style.cursorScale
+        return recent.reduce(CIImage.empty()) { layers, click in
+            let progress = (time - click.time) / duration
+            let grow = 1 - pow(1 - progress, 3)
+            let radius = (style.clickEffect == .circle ? 14 + 10 * grow : 8 + 38 * grow) * canvasPerPoint
+            let center = CGPoint(x: screen.minX + click.position.x * canvasPerSourcePixel,
+                                 y: screen.minY + click.position.y * canvasPerSourcePixel)
+            let frame = flipped(CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
+            let strength = (style.clickEffect == .circle ? 0.38 : 0.75) * (1 - progress)
+            return Self.fade(effect.transformed(by: placement(of: effect.extent.size, in: frame)), to: strength).composited(over: layers)
+        }
+    }
+
+    private static func fade(_ image: CIImage, to opacity: Double) -> CIImage {
+        guard opacity < 1 else { return image }
+        return image.applyingFilter("CIColorMatrix", parameters: ["inputAVector": CIVector(x: 0, y: 0, z: 0, w: opacity)])
+    }
+
+    /// A soft white disc for the circle effect, a ring for the ripple.
+    private static func effectImage(_ kind: RenderSettings.ClickEffect) -> CIImage? {
+        guard kind != .none else { return nil }
+        let size = 256
+        guard let context = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8, bytesPerRow: 0,
+                                      space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        else { return nil }
+        let bounds = CGRect(x: 0, y: 0, width: size, height: size)
+        context.setShadow(offset: .zero, blur: 10, color: CGColor(gray: 0, alpha: 0.35))
+        if kind == .circle {
+            context.setFillColor(CGColor(gray: 1, alpha: 1))
+            context.fillEllipse(in: bounds.insetBy(dx: 12, dy: 12))
+        } else {
+            context.setStrokeColor(CGColor(gray: 1, alpha: 1))
+            context.setLineWidth(12)
+            context.strokeEllipse(in: bounds.insetBy(dx: 18, dy: 18))
+        }
+        return context.makeImage().map { CIImage(cgImage: $0) }
     }
 
     private func screenLayer(_ source: CIImage, at screen: CGRect) -> CIImage {
@@ -142,8 +383,8 @@ final class FrameRenderer: @unchecked Sendable {
         return CGPoint(x: screen.minX + point.x * canvasPerSourcePixel, y: screen.minY + point.y * canvasPerSourcePixel)
     }
 
-    private func cursorLayer(_ cursor: CursorImage, tip: CGPoint, screen: CGRect) -> CIImage {
-        let canvasPerPoint = screen.width / log.sourceSize.width * log.pointPixelScale * style.cursorScale
+    private func cursorLayer(_ cursor: CursorImage, tip: CGPoint, screen: CGRect, scale: Double = 1) -> CIImage {
+        let canvasPerPoint = screen.width / log.sourceSize.width * log.pointPixelScale * style.cursorScale * scale
         let size = CGSize(width: cursor.size.width * canvasPerPoint, height: cursor.size.height * canvasPerPoint)
         let topLeft = CGPoint(x: tip.x - cursor.hotspot.x * canvasPerPoint, y: tip.y - cursor.hotspot.y * canvasPerPoint)
         let frame = flipped(CGRect(origin: topLeft, size: size))

@@ -24,9 +24,13 @@
 	<string>14.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Avora records your camera when you turn it on in Settings.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Avora records your microphone when you turn it on in Settings.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Avora turns what you say into captions, on this Mac when your language allows it.</string>
 </dict>
 </plist>

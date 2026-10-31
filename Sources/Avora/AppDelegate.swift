@@ -31,8 +31,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         refreshButton()
         register(.toggleRecording) { [weak self] in self?.toggleRecording() }
         register(.togglePause) { [weak self] in self?.togglePause() }
+        register(.restart) { [weak self] in self?.restartRecording() }
         Task.detached(priority: .utility) { RawRecordings.removeExpired() }
-        mainWindow.show()
+        offerRecovery()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
@@ -51,6 +52,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .recording(let timer):
             menu.addItem(recordItem("Stop Recording"))
             menu.addItem(shortcutItem(timer.isPaused ? "Resume Recording" : "Pause Recording", #selector(togglePause), .togglePause))
+            menu.addItem(shortcutItem("Restart Recording", #selector(restartRecording), .restart))
+            menu.addItem(item("Discard Recording…", #selector(discardRecording), key: ""))
         case .rendering(let progress):
             menu.addItem(NSMenuItem(title: "Rendering video… \(Int(progress * 100))%", action: nil, keyEquivalent: ""))
         }
@@ -118,7 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func shortcutItem(_ title: String, _ action: Selector, _ shortcut: Shortcut) -> NSMenuItem {
-        let entry = item(title, action, key: shortcut.key)
+        let entry = item(title, action, key: shortcut.menuKey ?? shortcut.key)
         entry.keyEquivalentModifierMask = shortcut.modifiers
         return entry
     }
@@ -172,6 +175,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func togglePause() {
         controller.togglePause()
+    }
+
+    @objc private func restartRecording() {
+        Task { await controller.discard(restart: true) }
+    }
+
+    @objc private func discardRecording() {
+        let alert = NSAlert()
+        alert.messageText = "Discard this recording?"
+        alert.informativeText = "Nothing from it is saved."
+        alert.addButton(withTitle: "Discard")
+        alert.addButton(withTitle: "Keep Recording")
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        Task { await controller.discard(restart: false) }
+    }
+
+    /// A recording that was cut short by a crash is offered back once, at launch.
+    private func offerRecovery() {
+        guard let folder = RawRecordings.unfinished().last else { return }
+        let alert = NSAlert()
+        alert.messageText = "Recover the unfinished recording?"
+        alert.informativeText = "Avora stopped while recording \(folder.url.lastPathComponent). What was saved up to then can still become a video."
+        alert.addButton(withTitle: "Recover")
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Not Now")
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn: Task { await controller.recover(folder) }
+        case .alertSecondButtonReturn: try? FileManager.default.removeItem(at: folder.url)
+        default: break
+        }
     }
 
     @objc private func clearRawRecordings() {
