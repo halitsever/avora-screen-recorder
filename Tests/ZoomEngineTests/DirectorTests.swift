@@ -83,3 +83,15 @@ struct DirectorTests {
         #expect(try frame(frames, at: 1.5).cursorShape == 3)
     }
 }
+
+struct DirectorSmoothingTests {
+    @Test func withoutCursorSpringTheCursorIsTheRawPosition() {
+        let log = InputLog(
+            sourceSize: CGSize(width: 1000, height: 600), pointPixelScale: 1, duration: 1,
+            cursor: [CursorSample(time: 0, position: CGPoint(x: 0, y: 0)), CursorSample(time: 1, position: CGPoint(x: 600, y: 0))],
+            clicks: []
+        )
+        let frames = Director(log: log, base: CGRect(x: 0, y: 0, width: 1000, height: 600), cursorSpring: nil).frames(fps: 10)
+        #expect(frames[5].cursor == CGPoint(x: 300, y: 0))
+    }
+}
