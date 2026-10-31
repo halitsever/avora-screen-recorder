@@ -16,6 +16,8 @@ final class EditorModel: ObservableObject {
     @Published private(set) var isPlaying = false
     @Published private(set) var exportProgress: Double?
     @Published var errorMessage: String?
+    /// Loudness of the exported mix along the timeline; nil when there is no audio.
+    @Published private(set) var waveform: [Float]?
 
     var duration: Double { log.duration }
     var title: String { folder.url.lastPathComponent }
@@ -48,6 +50,10 @@ final class EditorModel: ObservableObject {
                 }
             }
             refreshPreview(immediately: true)
+            let folder = folder, duration = duration
+            waveform = try? await Task.detached {
+                try await AudioMixSource.waveform(for: folder, duration: duration, buckets: min(max(Int(duration * 40), 200), 4000))
+            }.value
         } catch {
             errorMessage = error.localizedDescription
         }

@@ -8,6 +8,8 @@ import ZoomEngine
 final class InputRecorder {
     private let displayBounds: CGRect
     private let scale: Double
+    private let window: WindowTracker?
+    private let pixelSize: CGSize
     private let queue = DispatchQueue(label: "avora.input", qos: .userInteractive)
     private var timer: DispatchSourceTimer?
     private var shapeTimer: Timer?
@@ -22,9 +24,11 @@ final class InputRecorder {
     static let shapeRate = 20.0
 
     /// `displayBounds` is in global points with a top-left origin, as `CGDisplayBounds` returns.
-    init(displayBounds: CGRect, scale: Double) {
+    init(displayBounds: CGRect, scale: Double, window: WindowTracker? = nil, pixelSize: CGSize = .zero) {
         self.displayBounds = displayBounds
         self.scale = scale
+        self.window = window
+        self.pixelSize = pixelSize
     }
 
     func start() {
@@ -71,7 +75,7 @@ final class InputRecorder {
     private func tick() {
         let now = HostClock.now()
         guard let location = CGEvent(source: nil)?.location else { return }
-        let position = CGPoint(
+        let position = window.map { CaptureGeometry.pixel(for: location, in: $0.frame, pixelSize: pixelSize) } ?? CGPoint(
             x: (location.x - displayBounds.minX) * scale,
             y: (location.y - displayBounds.minY) * scale
         )

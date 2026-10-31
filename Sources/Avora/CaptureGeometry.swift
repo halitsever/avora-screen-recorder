@@ -1,4 +1,5 @@
 import CoreGraphics
+import Foundation
 
 /// What gets recorded: the whole display under the mouse, one window's area, or a dragged area.
 enum CaptureMode: String, CaseIterable {
@@ -40,11 +41,56 @@ enum CaptureGeometry {
         area.offsetBy(dx: -display.minX, dy: -display.minY)
     }
 
+    /// A global point inside a recorded window. The window may have moved or been resized since
+    /// recording began; capture scales its content to the first size, so the cursor scales too.
+    static func pixel(for point: CGPoint, in frame: CGRect, pixelSize: CGSize) -> CGPoint {
+        CGPoint(x: (point.x - frame.minX) * pixelSize.width / frame.width,
+                y: (point.y - frame.minY) * pixelSize.height / frame.height)
+    }
+
     static func pixelSize(for area: CGRect, scale: Double) -> CGSize {
         CGSize(width: even(area.width * scale), height: even(area.height * scale))
     }
 
     private static func even(_ value: Double) -> Double {
         (value / 2).rounded(.down) * 2
+    }
+}
+
+/// The current frame of one window, read 30 times a second while it is recorded.
+final class WindowTracker: @unchecked Sendable {
+    let windowID: CGWindowID
+    private let lock = NSLock()
+    private var latest: CGRect
+    private var timer: DispatchSourceTimer?
+
+    init(windowID: CGWindowID, frame: CGRect) {
+        self.windowID = windowID
+        latest = frame
+    }
+
+    var frame: CGRect { lock.withLock { latest } }
+
+    func start() {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "avora.window", qos: .userInteractive))
+        timer.schedule(deadline: .now(), repeating: 1.0 / 30)
+        timer.setEventHandler { [weak self] in
+            guard let self, let frame = Self.frame(of: windowID) else { return }
+            lock.withLock { self.latest = frame }
+        }
+        timer.resume()
+        self.timer = timer
+    }
+
+    func stop() {
+        timer?.cancel()
+        timer = nil
+    }
+
+    /// nil once the window is gone; the last known frame is kept then.
+    static func frame(of windowID: CGWindowID) -> CGRect? {
+        let info = CGWindowListCopyWindowInfo(.optionIncludingWindow, windowID) as? [[String: Any]]
+        guard let bounds = info?.first?[kCGWindowBounds as String] as? NSDictionary else { return nil }
+        return CGRect(dictionaryRepresentation: bounds)
     }
 }

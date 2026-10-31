@@ -7,6 +7,8 @@ struct CaptureTarget {
     let bounds: CGRect
     /// The recorded part of the display in its own points; nil records the whole display.
     var sourceRect: CGRect?
+    /// Set when one window is recorded wherever it goes.
+    var windowID: CGWindowID?
     let scale: Double
     let pixelSize: CGSize
 
@@ -26,6 +28,16 @@ struct CaptureTarget {
         return CaptureTarget(filter: filter, bounds: bounds, sourceRect: nil, scale: scale, pixelSize: pixelSize)
     }
 
+    /// Just one window, even while it moves or sits under other windows.
+    static func window(_ id: CGWindowID) async throws -> CaptureTarget {
+        let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        guard let window = content.windows.first(where: { $0.windowID == id }) else { throw RecorderError.windowGone }
+        let filter = SCContentFilter(desktopIndependentWindow: window)
+        let scale = Double(filter.pointPixelScale)
+        return CaptureTarget(filter: filter, bounds: window.frame, sourceRect: nil, windowID: id, scale: scale,
+                             pixelSize: CaptureGeometry.pixelSize(for: window.frame, scale: scale))
+    }
+
     /// A window's area or a dragged area, cropped from the display it overlaps most.
     static func area(_ area: CGRect) async throws -> CaptureTarget {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -36,7 +48,7 @@ struct CaptureTarget {
         let ownApp = content.applications.filter { $0.bundleIdentifier == Bundle.main.bundleIdentifier }
         let filter = SCContentFilter(display: content.displays[index], excludingApplications: ownApp, exceptingWindows: [])
         let scale = Double(filter.pointPixelScale)
-        return CaptureTarget(filter: filter, bounds: bounds, sourceRect: CaptureGeometry.sourceRect(for: bounds, on: frames[index]),
+        return CaptureTarget(filter: filter, bounds: bounds, sourceRect: CaptureGeometry.sourceRect(for: bounds, on: frames[index]), windowID: nil,
                              scale: scale, pixelSize: CaptureGeometry.pixelSize(for: bounds, scale: scale))
     }
 
@@ -47,12 +59,14 @@ struct CaptureTarget {
 
 enum RecorderError: LocalizedError {
     case noDisplay
+    case windowGone
     case noFrames
     case writer(Error?)
 
     var errorDescription: String? {
         switch self {
         case .noDisplay: "No display is available to record."
+        case .windowGone: "The window closed before recording could start."
         case .noFrames: "The recording did not capture any frames."
         case .writer(let error): "Could not write the recording: \(error?.localizedDescription ?? "unknown error")"
         }
@@ -88,6 +102,7 @@ final class ScreenRecorder: NSObject, SCStreamOutput, SCStreamDelegate {
         config.minimumFrameInterval = CMTime(value: 1, timescale: Self.fps)
         config.showsCursor = false
         if let sourceRect = target.sourceRect { config.sourceRect = sourceRect }
+        if target.windowID != nil { config.ignoreShadowsSingleWindow = true }
         config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
         config.colorSpaceName = CGColorSpace.sRGB
         config.queueDepth = 6
