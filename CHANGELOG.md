@@ -31,6 +31,7 @@
 - **Speed Up Typing** in the editor plays stretches of steady typing at 3×, when **Note when you type** is on.
 - In square, 4:5 and 9:16 videos a zoom fills the frame instead of leaving bands of backdrop.
 - The editor opens after each recording unless turned off in **Settings…**.
+- Avora starts in the menu bar without opening its window; **Open Avora…** opens it. The window previews the backdrop around a more lifelike desktop.
 - The headline describes the whole app instead of the zoom alone.
 - A recording that fails to start no longer leaves an empty folder behind.
 
