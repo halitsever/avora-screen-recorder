@@ -1,0 +1,24 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - docs/**
+      - '**.md'
+      - package.json
+      - package-lock.json
+  pull_request:
+    paths-ignore:
+      - docs/**
+      - '**.md'
+      - package.json
+      - package-lock.json
+
+jobs:
+  test:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+      - run: swift --version
+      - run: swift test
