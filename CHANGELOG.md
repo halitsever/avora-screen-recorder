@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 - 2026-11-01
 
 - Start and stop recording from any app with ⌃⌥⌘R.
 - Raw recordings are deleted after 7 days. **Clear Raw Recordings** in the menu removes them sooner and shows how much space they use.
