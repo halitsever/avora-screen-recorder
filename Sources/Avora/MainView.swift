@@ -86,22 +86,12 @@ private struct PreviewStage: View {
                 .resizable()
             GeometryReader { proxy in
                 let size = proxy.size
-                ZStack(alignment: .topLeading) {
-                    Color(white: 0.96)
-                    Color(white: 0.89).frame(height: size.height * 0.82 * 0.08)
-                    RoundedRectangle(cornerRadius: 4).fill(.white)
-                        .shadow(color: .black.opacity(0.15), radius: 4, y: 1)
-                        .frame(width: size.width * 0.82 * 0.52, height: size.height * 0.82 * 0.6)
-                        .offset(x: size.width * 0.82 * 0.09, y: size.height * 0.82 * 0.18)
-                    RoundedRectangle(cornerRadius: 4).fill(Color(rgb: 0x26262C))
-                        .frame(width: size.width * 0.82 * 0.46, height: size.height * 0.82 * 0.54)
-                        .offset(x: size.width * 0.82 * 0.45, y: size.height * 0.82 * 0.32)
-                }
-                .frame(width: size.width * 0.82, height: size.height * 0.82)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .compositingGroup()
-                .shadow(color: .black.opacity(0.4), radius: 15, y: 7)
-                .frame(width: size.width, height: size.height)
+                PreviewDesktop()
+                    .frame(width: size.width * 0.82, height: size.height * 0.82)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .compositingGroup()
+                    .shadow(color: .black.opacity(0.4), radius: 15, y: 7)
+                    .frame(width: size.width, height: size.height)
             }
         }
         .aspectRatio(16 / 10, contentMode: .fit)

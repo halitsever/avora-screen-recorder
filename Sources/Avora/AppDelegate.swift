@@ -33,7 +33,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         register(.togglePause) { [weak self] in self?.togglePause() }
         register(.restart) { [weak self] in self?.restartRecording() }
         Task.detached(priority: .utility) { RawRecordings.removeExpired() }
-        mainWindow.show()
         offerRecovery()
     }
 
