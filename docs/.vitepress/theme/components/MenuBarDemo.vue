@@ -5,14 +5,14 @@ import templateIcon from '../../../../Resources/Brand/avoraTemplate@2x.png'
 
 /** Avora's status item menu. Start Recording and the Background submenu respond to clicks. */
 const since = ref(0)
-const label = ref('Start Recording')
+const label = ref('Record Screen')
 let timer = 0
 
 function toggle() {
   clearInterval(timer)
   if (since.value) {
     since.value = 0
-    label.value = 'Start Recording'
+    label.value = 'Record Screen'
     return
   }
   since.value = Date.now()
@@ -34,7 +34,8 @@ onBeforeUnmount(() => clearInterval(timer))
       <span class="r"><span class="mb-icon" :class="{ rec: since }"><img :src="templateIcon" alt="Avora menu bar icon" /></span><span>Fri 31 Oct</span><span>10:41</span></span>
     </div>
     <div class="menu" role="menu" aria-label="Avora menu">
-      <button class="mi hi" role="menuitem" @click="toggle"><span>{{ label }}</span><kbd>⌘R</kbd></button>
+      <button class="mi hi" role="menuitem" @click="toggle"><span>{{ label }}</span><kbd>⌃⌥⌘R</kbd></button>
+      <div class="mi" role="menuitem" aria-haspopup="true">Capture<span class="ar">›</span></div>
       <div class="mi" role="menuitem" aria-haspopup="true">
         Background<span class="ar">›</span>
         <div class="submenu" role="menu" aria-label="Background">
@@ -53,10 +54,13 @@ onBeforeUnmount(() => clearInterval(timer))
       </div>
       <hr />
       <div class="mi" role="menuitem">Open Avora…</div>
+      <div class="mi" role="menuitem">Edit Last Recording…<kbd>⌘E</kbd></div>
+      <div class="mi" role="menuitem">Settings…<kbd>⌘,</kbd></div>
       <div class="mi" role="menuitem">Open Videos Folder</div>
+      <div class="mi" role="menuitem">Clear Raw Recordings…</div>
       <hr />
       <div class="mi" role="menuitem">Quit Avora<kbd>⌘Q</kbd></div>
     </div>
-    <p class="desk-hint">Try it: click <b>Start Recording</b>, or pick a background.</p>
+    <p class="desk-hint">Try it: click <b>Record Screen</b>, or pick a background.</p>
   </div>
 </template>

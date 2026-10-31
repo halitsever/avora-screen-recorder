@@ -21,10 +21,13 @@ Avora records your screen and zooms in on what you click. Press stop and a finis
 
 ## Lives in your<br>menu bar.
 
-Choose **Start Recording**, do your thing, then **Stop Recording**. The video is saved to `~/Movies/Avora` and Finder opens on it.
+Choose **Record Screen**, do your thing, then **Stop Recording**, or press **⌃⌥⌘R** from any app to do both. **⌃⌥⌘P** pauses and resumes. The video is saved to `~/Movies/Avora` and Finder opens on it.
 
-- **Its own window too.** It opens when you launch the app and again from **Open Avora…** in the menu. It previews the backdrop and has the same record and folder controls. Avora shows a Dock icon while the window is open and goes back to the menu bar when you close it.
-- **One permission.** The first recording asks for Screen Recording access.
+- **Screen, window or area.** Pick what to record under **Capture** in the menu or in Avora's window. A window or area is chosen on a dimmed overlay: click a window, or drag out an area and press Return. A window is recorded as the area it covers, so moving it during the recording is not followed.
+- **Sound.** Turn on your microphone and the Mac's own sound in **Settings…**. Each is kept on its own track while recording and mixed when the video is exported, with your voice evened out to a steady level.
+- **Edit the zooms.** **Edit Last Recording…** opens the zoom editor: drag zooms along the timeline, resize them, add or remove them, change how far each one zooms in and pin its focus to a spot. **Export** saves a new video. The video from the recording is saved either way, and Settings can open the editor after every recording.
+- **Its own window too.** It opens when you launch the app and again from **Open Avora…** in the menu. It previews the backdrop and has the same controls. Avora shows a Dock icon while a window is open and goes back to the menu bar when you close it.
+- **Permissions.** The first recording asks for Screen Recording access, and the microphone asks the first time you use it.
 
 </UsingSection>
 
@@ -50,7 +53,7 @@ Windows less than 2.5 s apart merge into one zoom. Cursor positions are grouped 
 
 <ZoomChapter title="Springs ease it in and out.">
 
-The screen and the cursor reach their targets through damped springs simulated in 1 ms steps. That gives the smooth ease in and out.
+The screen and the cursor reach their targets through damped springs simulated in 1 ms steps. That gives the smooth ease in and out, and motion blur smears whatever moves within a frame.
 
 </ZoomChapter>
 
@@ -83,14 +86,14 @@ Avora needs macOS 14 or later and Xcode 16 or later. Run the tests with `swift t
 <div class="cards">
 <InfoCard title="Re-render a recording">
 
-Raw recordings stay in `~/Library/Application Support/Avora/Recordings`. Each folder holds the screen video, `input.json` with cursor and click data, and the captured cursor images. Render one again with:
+Raw recordings stay in `~/Library/Application Support/Avora/Recordings` for 7 days, and **Clear Raw Recordings** in the menu removes them sooner. Each folder holds the screen video, `input.json` with cursor and click data, and the captured cursor images. Render one again with:
 
 ```sh
 swift build -c release
 .build/release/Avora render "<recording folder>" out.mp4 --background sky
 ```
 
-Without `--background` the render uses the background picked in the app.
+`--format` takes `h264`, `hevc`, `prores` or `gif`, and `--motion-blur` a number from 0 to 1. Anything left out uses what is picked in the app.
 
 </InfoCard>
 <InfoCard title="Keep the permission">
@@ -109,13 +112,14 @@ The build script signs the app ad hoc. macOS ties the permission to the signatur
 
 The zoom logic lives in `Sources/ZoomEngine` with no UI code, and `swift test` covers it.
 
+**Settings…** changes the export: MP4 (H.264 or HEVC), ProRes 422 HQ or GIF, resolution, frame rate, quality, zoom level, motion blur, padding, corners, shadow, cursor size and cursor smoothing.
+
 <CardGrid>
-<FileTree :rows="[['Sources/', ''], ['ZoomEngine/', 'zoom windows, focus regions, framing, springs, the per-frame director', true], ['Avora/', 'menu bar app, window, backgrounds, capture, input log, renderer, exporter', true], ['Resources/', 'Info.plist, app icon, menu bar icon, logo, Sora font'], ['Tests/', 'the engine, backgrounds and preferences']]" />
+<FileTree :rows="[['Sources/', ''], ['ZoomEngine/', 'zoom windows, focus regions, framing, springs, motion trails, zoom edits, the per-frame director', true], ['Avora/', 'menu bar app, windows, editor, capture, audio, input log, renderer, exporter', true], ['Resources/', 'Info.plist, app icon, menu bar icon, logo, Sora font'], ['Tests/', 'the engine, backgrounds and preferences']]" />
 <InfoCard title="Not done yet">
 
-- Audio
-- Motion blur
-- An editor for adjusting zooms by hand
+- Following a window that moves while it is recorded
+- An audio waveform in the editor
 
 </InfoCard>
 </CardGrid>
