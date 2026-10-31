@@ -23,9 +23,9 @@ Avora records your screen and zooms in on what you click. Press stop and a finis
 
 Choose **Record Screen**, do your thing, then **Stop Recording**, or press **⌃⌥⌘R** from any app to do both. **⌃⌥⌘P** pauses and resumes. The video is saved to `~/Movies/Avora` and Finder opens on it.
 
-- **Screen, window or area.** Pick what to record under **Capture** in the menu or in Avora's window. A window or area is chosen on a dimmed overlay: click a window, or drag out an area and press Return. A window is recorded as the area it covers, so moving it during the recording is not followed.
+- **Screen, window or area.** Pick what to record under **Capture** in the menu or in Avora's window. A window or area is chosen on a dimmed overlay: click a window, or drag out an area and press Return. A window is recorded on its own, so it stays in the video when you move it or other windows cover it.
 - **Sound.** Turn on your microphone and the Mac's own sound in **Settings…**. Each is kept on its own track while recording and mixed when the video is exported, with your voice evened out to a steady level.
-- **Edit the zooms.** **Edit Last Recording…** opens the zoom editor: drag zooms along the timeline, resize them, add or remove them, change how far each one zooms in and pin its focus to a spot. **Export** saves a new video. The video from the recording is saved either way, and Settings can open the editor after every recording.
+- **Edit the zooms.** **Edit Last Recording…** opens the zoom editor: drag zooms along the timeline, resize them, add or remove them, change how far each one zooms in and pin its focus to a spot. The sound's waveform runs under the zooms. **Export** saves a new video. The video from the recording is saved either way, and Settings can open the editor after every recording.
 - **Its own window too.** It opens when you launch the app and again from **Open Avora…** in the menu. It previews the backdrop and has the same controls. Avora shows a Dock icon while a window is open and goes back to the menu bar when you close it.
 - **Permissions.** The first recording asks for Screen Recording access, and the microphone asks the first time you use it.
 
@@ -118,8 +118,8 @@ The zoom logic lives in `Sources/ZoomEngine` with no UI code, and `swift test` c
 <FileTree :rows="[['Sources/', ''], ['ZoomEngine/', 'zoom windows, focus regions, framing, springs, motion trails, zoom edits, the per-frame director', true], ['Avora/', 'menu bar app, windows, editor, capture, audio, input log, renderer, exporter', true], ['Resources/', 'Info.plist, app icon, menu bar icon, logo, Sora font'], ['Tests/', 'the engine, backgrounds and preferences']]" />
 <InfoCard title="Not done yet">
 
-- Following a window that moves while it is recorded
-- An audio waveform in the editor
+- Downloads signed for macOS; build from source for now
+- Resizing a recorded window keeps its first size in the video
 
 </InfoCard>
 </CardGrid>
