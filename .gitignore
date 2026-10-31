@@ -128,3 +128,14 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Swift / Xcode
+.build/
+build/
+.swiftpm/
+.DS_Store
+.superpowers/
+
+# VitePress
+docs/.vitepress/cache/
+docs/.vitepress/dist/
