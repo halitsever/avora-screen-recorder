@@ -3,7 +3,7 @@ import Testing
 @testable import Avora
 
 /// 10 ms of a 48 kHz mono sine starting at `host` seconds.
-private func toneBuffer(at host: Double) throws -> CMSampleBuffer {
+func toneBuffer(at host: Double) throws -> CMSampleBuffer {
     let rate = 48_000.0, count = 480
     var description = AudioStreamBasicDescription(
         mSampleRate: rate, mFormatID: kAudioFormatLinearPCM, mFormatFlags: kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked,

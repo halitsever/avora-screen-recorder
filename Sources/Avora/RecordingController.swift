@@ -52,6 +52,7 @@ final class RecordingController: ObservableObject {
         let input: InputRecorder
         let screen: ScreenRecorder
         let microphone: MicrophoneRecorder?
+        let window: WindowTracker?
         let audio: [(writer: AudioTrackWriter, kind: AudioManifest.Kind)]
     }
 
@@ -83,12 +84,12 @@ final class RecordingController: ObservableObject {
                     state = .idle
                     return
                 }
-                if let owner = picked.windowOwner {
-                    NSRunningApplication(processIdentifier: owner)?.activate()
-                    // Give the window a moment to come forward before the first frame.
-                    try await Task.sleep(for: .milliseconds(250))
+                if let window = picked.window {
+                    NSRunningApplication(processIdentifier: window.owner)?.activate()
+                    target = try await CaptureTarget.window(window.id)
+                } else {
+                    target = try await CaptureTarget.area(picked.rect)
                 }
-                target = try await CaptureTarget.area(picked.rect)
             }
 
             var audio: [(writer: AudioTrackWriter, kind: AudioManifest.Kind)] = []
@@ -101,7 +102,9 @@ final class RecordingController: ObservableObject {
             let systemAudio = preferences.recordsSystemAudio ? AudioTrackWriter(url: folder.systemAudio) : nil
             if let systemAudio { audio.append((systemAudio, .system)) }
 
-            let input = InputRecorder(displayBounds: target.bounds, scale: target.scale)
+            let tracker = target.windowID.map { WindowTracker(windowID: $0, frame: target.bounds) }
+            tracker?.start()
+            let input = InputRecorder(displayBounds: target.bounds, scale: target.scale, window: tracker, pixelSize: target.pixelSize)
             let screen = ScreenRecorder(clock: clock, systemAudio: systemAudio)
             input.start()
             microphone?.start()
@@ -110,10 +113,11 @@ final class RecordingController: ObservableObject {
             } catch {
                 input.stop()
                 microphone?.stop()
+                tracker?.stop()
                 throw error
             }
             session = Session(folder: folder, target: target, clock: clock, input: input, screen: screen,
-                              microphone: microphone, audio: audio)
+                              microphone: microphone, window: tracker, audio: audio)
             state = .recording(RecordingTimer(started: Date()))
         } catch let error as SCStreamError where error.code == .userDeclined {
             state = .idle
@@ -155,6 +159,7 @@ final class RecordingController: ObservableObject {
             let timing = try await session.screen.stop()
             session.microphone?.stop()
             session.input.stop()
+            session.window?.stop()
 
             var tracks: [AudioManifest.Track] = []
             for (writer, kind) in session.audio {

@@ -12,6 +12,9 @@
 - Settings window (⌘,): MP4 (H.264 or HEVC), ProRes 422 HQ or GIF, resolution, frame rate, quality, zoom level, padding, corners, shadow, cursor size and smoothing.
 - Zoom editor (**Edit Last Recording…**, ⌘E): live preview with sound, zooms you can move, resize, add and remove, a level from 1× to 4× and an automatic or pinned focus per zoom. Edits are saved next to the raw recording and used by every export after them.
 - `Avora render` takes `--format` and `--motion-blur`, and uses zooms edited in the editor.
+- A recorded window is followed when it moves and stays visible when other windows cover it.
+- The editor shows the audio waveform under the zooms.
+- The test workflow can also be started by hand.
 - A recording that fails to start no longer leaves an empty folder behind.
 
 ## 0.1.0 - 2026-10-31

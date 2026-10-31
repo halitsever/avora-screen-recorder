@@ -111,6 +111,26 @@ final class AudioMixSource {
         return (placed.map(\.track), mix, levels.outputGain)
     }
 
+    /// The loudest moment in each of `buckets` equal slices of the exported mix, from 0 to 1.
+    /// nil when the recording has no audio.
+    static func waveform(for folder: RecordingFolder, duration: Double, buckets: Int) async throws -> [Float]? {
+        guard buckets > 0, let source = try await make(for: folder, duration: duration) else { return nil }
+        defer { source.cancel() }
+        var peaks = [Float](repeating: 0, count: buckets)
+        let framesPerBucket = max(duration * sampleRate / Double(buckets), 1)
+        while let buffer = source.nextBuffer() {
+            let first = buffer.presentationTimeStamp.seconds * sampleRate
+            var sample = 0
+            forEachSample(in: buffer) { value in
+                // Two interleaved channels per frame.
+                let bucket = min(max(Int((first + Double(sample / 2)) / framesPerBucket), 0), buckets - 1)
+                peaks[bucket] = max(peaks[bucket], abs(value.pointee))
+                sample += 1
+            }
+        }
+        return peaks
+    }
+
     func nextBuffer() -> CMSampleBuffer? {
         guard let buffer = output.copyNextSampleBuffer() else { return nil }
         if gain != 1 { Self.amplify(buffer, by: gain) }

@@ -21,7 +21,7 @@ struct EditorView: View {
             }
             Divider().overlay(Color.white.opacity(0.06))
             ZoomTimelineView(model: model)
-                .frame(height: 150)
+                .frame(height: model.waveform == nil ? 150 : 200)
                 .padding(.horizontal, 18).padding(.vertical, 12)
         }
         .background(Brand.ink)
@@ -220,6 +220,13 @@ private struct ZoomTimelineView: View {
                     }
                 }
                 .frame(height: 56)
+                if let waveform = model.waveform {
+                    Text("Audio").font(.system(size: 11)).foregroundStyle(.secondary)
+                    WaveformView(peaks: waveform)
+                        .frame(height: 30)
+                        .contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 0).onChanged { model.seek(to: t($0.location.x)) })
+                }
                 Spacer(minLength: 0)
             }
             .overlay(alignment: .topLeading) {
@@ -305,5 +312,27 @@ private struct ZoomTimelineView: View {
                     dragOrigin = nil
                     model.finishDrag()
                 })
+    }
+}
+
+/// Bars for the loudest moment in each slice of the mix, mirrored around the middle and scaled
+/// to the loudest one so quiet recordings still read.
+private struct WaveformView: View {
+    let peaks: [Float]
+
+    var body: some View {
+        Canvas { context, size in
+            guard !peaks.isEmpty else { return }
+            let step = size.width / CGFloat(peaks.count)
+            let loudest = CGFloat(max(peaks.max() ?? 1, 0.05))
+            var bars = Path()
+            for (index, peak) in peaks.enumerated() {
+                let height = max(CGFloat(peak) / loudest * size.height, 1)
+                bars.addRect(CGRect(x: CGFloat(index) * step, y: (size.height - height) / 2, width: max(step - 0.5, 0.5), height: height))
+            }
+            context.fill(bars, with: .color(Color(rgb: 0xFFD3A1).opacity(0.55)))
+        }
+        .background(RoundedRectangle(cornerRadius: 8).fill(.white.opacity(0.035)))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
     }
 }

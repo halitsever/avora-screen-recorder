@@ -3,8 +3,8 @@ import AppKit
 /// What the user picked on the selection overlay, in global (Quartz) points.
 struct CaptureSelection {
     let rect: CGRect
-    /// Owner of the picked window, brought to the front before recording starts.
-    let windowOwner: pid_t?
+    /// The picked window, followed while it is recorded; nil for a dragged area.
+    let window: (id: CGWindowID, owner: pid_t)?
 }
 
 /// A dimmed layer over every display for picking a window or dragging out an area.
@@ -13,11 +13,11 @@ final class SelectionOverlay {
     private let mode: CaptureMode
     private var windows: [OverlayWindow] = []
     private var continuation: CheckedContinuation<CaptureSelection?, Never>?
-    private let candidates: [(rect: CGRect, owner: pid_t)]
+    private let candidates: [(rect: CGRect, id: CGWindowID, owner: pid_t)]
 
     fileprivate var dragStart: CGPoint?
     fileprivate var selection: CGRect?
-    fileprivate var hovered: (rect: CGRect, owner: pid_t)?
+    fileprivate var hovered: (rect: CGRect, id: CGWindowID, owner: pid_t)?
 
     /// nil when the user presses Esc.
     static func pick(_ mode: CaptureMode) async -> CaptureSelection? {
@@ -59,7 +59,7 @@ final class SelectionOverlay {
     }
 
     fileprivate func confirm() {
-        if let selection { finish(CaptureSelection(rect: selection, windowOwner: nil)) }
+        if let selection { finish(CaptureSelection(rect: selection, window: nil)) }
     }
 
     fileprivate func moved(to point: CGPoint) {
@@ -71,7 +71,7 @@ final class SelectionOverlay {
     fileprivate func pressed(at point: CGPoint) {
         switch mode {
         case .window:
-            if let hovered { finish(CaptureSelection(rect: hovered.rect, windowOwner: hovered.owner)) }
+            if let hovered { finish(CaptureSelection(rect: hovered.rect, window: (hovered.id, hovered.owner))) }
         case .area:
             dragStart = point
             selection = nil
@@ -103,18 +103,19 @@ final class SelectionOverlay {
     }
 
     /// Normal app windows of other apps, front to back.
-    private static func visibleWindows() -> [(rect: CGRect, owner: pid_t)] {
+    private static func visibleWindows() -> [(rect: CGRect, id: CGWindowID, owner: pid_t)] {
         let info = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] ?? []
         let ownPID = ProcessInfo.processInfo.processIdentifier
         return info.compactMap { window in
             guard (window[kCGWindowLayer as String] as? Int) == 0,
                   let owner = window[kCGWindowOwnerPID as String] as? pid_t, owner != ownPID,
+                  let id = window[kCGWindowNumber as String] as? CGWindowID,
                   (window[kCGWindowAlpha as String] as? Double ?? 1) > 0,
                   let bounds = window[kCGWindowBounds as String] as? NSDictionary,
                   let rect = CGRect(dictionaryRepresentation: bounds),
                   rect.width >= CaptureGeometry.minimumSize, rect.height >= CaptureGeometry.minimumSize
             else { return nil }
-            return (rect, owner)
+            return (rect, id, owner)
         }
     }
 }
