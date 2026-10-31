@@ -7,6 +7,7 @@ import ZoomEngine
 /// looks the same at any resolution.
 struct OutputStyle {
     var fps = 60.0
+    var resolution = RenderSettings.Resolution.source
     var maxWidth = 3840.0
     var padding = 0.06
     var cornerRadius = 0.012
@@ -14,11 +15,39 @@ struct OutputStyle {
     var shadowOpacity = 0.45
     var cursorScale = 1.5
     var backgroundParallax = 0.125
+    /// 0 turns motion blur off; 1 exposes each frame for 1/60 s.
+    var motionBlur = 1.0
+    var zoomScale = 2.0
+    var cursorSpring: SpringConfig? = .cursor
     var background = BackgroundPreset.named(nil)
+    var format = RenderSettings.Format.h264
+    var quality = RenderSettings.Quality.social
+
+    init(background: BackgroundPreset = .named(nil)) {
+        self.background = background
+    }
+
+    init(settings: RenderSettings, background: BackgroundPreset) {
+        self.background = background
+        format = settings.format
+        quality = settings.quality
+        let gif = settings.format == .gif
+        fps = gif ? RenderSettings.gifFPS : Double(settings.fps)
+        resolution = settings.resolution
+        maxWidth = gif ? RenderSettings.gifMaxWidth : 3840
+        padding = settings.padding
+        cornerRadius = settings.cornerRadius
+        shadowOpacity = settings.shadow
+        cursorScale = settings.cursorScale
+        motionBlur = settings.motionBlur
+        zoomScale = settings.zoom
+        cursorSpring = settings.smoothing.spring
+    }
 
     func canvasSize(for source: CGSize) -> CGSize {
-        let ratio = min(1, maxWidth / source.width)
-        return CGSize(width: even(source.width * ratio), height: even(source.height * ratio))
+        let size = resolution.canvasSize(for: source)
+        let ratio = min(1, maxWidth / size.width)
+        return CGSize(width: even(size.width * ratio), height: even(size.height * ratio))
     }
 
     func baseRect(in canvas: CGSize) -> CGRect {
@@ -46,12 +75,13 @@ final class FrameRenderer: @unchecked Sendable {
     private let fallbackCursor: CursorImage?
     private let background: CIImage
 
-    init(log: InputLog, cursorFolder: URL, style: OutputStyle) {
+    init(log: InputLog, cursorFolder: URL, style: OutputStyle, segments: [ZoomSegment]? = nil) {
         self.style = style
         self.log = log
         canvas = style.canvasSize(for: log.sourceSize)
         base = style.baseRect(in: canvas)
-        frames = Director(log: log, base: base).frames(fps: style.fps)
+        frames = Director(log: log, base: base, zoom: ZoomConfig(scale: style.zoomScale), segments: segments, cursorSpring: style.cursorSpring)
+            .frames(fps: style.fps)
 
         var cursors: [Int: CursorImage] = [:]
         for shape in log.shapes {
@@ -69,6 +99,7 @@ final class FrameRenderer: @unchecked Sendable {
         guard !frames.isEmpty else { return source }
         let index = min(max(Int((time * style.fps).rounded()), 0), frames.count - 1)
         let state = frames[index]
+        let previous = frames[max(index - 1, 0)]
         let screen = state.screenRect
         let bounds = CGRect(origin: .zero, size: canvas)
         let zoom = screen.width / base.width
@@ -77,36 +108,56 @@ final class FrameRenderer: @unchecked Sendable {
             .transformed(by: scaling(1 + max(zoom - 1, 0) * style.backgroundParallax, around: parallaxAnchor(screen)))
             .cropped(to: bounds)
 
-        let radius = style.cornerRadius * screen.width
+        // One soft shadow at the current position; smearing it as well costs a blur per sample.
         let shadowBlur = style.shadowBlur * screen.width
-        let shadow = roundedRect(flipped(screen).offsetBy(dx: 0, dy: -shadowBlur / 3), radius: radius,
+        let shadow = roundedRect(flipped(screen).offsetBy(dx: 0, dy: -shadowBlur / 3), radius: style.cornerRadius * screen.width,
                                  color: CIColor(red: 0, green: 0, blue: 0, alpha: style.shadowOpacity))
             .applyingGaussianBlur(sigma: shadowBlur)
         output = shadow.composited(over: output)
 
-        let placed = source.clampedToExtent().transformed(by: placement(of: log.sourceSize, in: flipped(screen)))
-        let mask = roundedRect(flipped(screen), radius: radius, color: .white)
-        output = placed.applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: mask])
-            .composited(over: output)
+        let placed = source.clampedToExtent()
+        let trail = MotionTrail.rects(from: previous.screenRect, to: screen, amount: style.motionBlur, fps: style.fps)
+        output = Self.average(trail.map { screenLayer(placed, at: $0) }).composited(over: output)
 
-        if let cursor = cursorLayer(for: state, screen: screen) {
-            output = cursor.composited(over: output)
+        if let tip = cursorTip(state), let cursor = state.cursorShape.flatMap({ cursors[$0] }) ?? fallbackCursor {
+            let tips = cursorTip(previous).map {
+                MotionTrail.points(from: $0, to: tip, amount: style.motionBlur, fps: style.fps)
+            } ?? [tip]
+            output = Self.average(tips.map { cursorLayer(cursor, tip: $0, screen: screen) }).composited(over: output)
         }
         return output.cropped(to: bounds)
     }
 
-    private func cursorLayer(for state: FrameState, screen: CGRect) -> CIImage? {
-        guard let point = state.cursor,
-              let cursor = state.cursorShape.flatMap({ cursors[$0] }) ?? fallbackCursor
-        else { return nil }
+    private func screenLayer(_ source: CIImage, at screen: CGRect) -> CIImage {
+        let placed = source.transformed(by: placement(of: log.sourceSize, in: flipped(screen)))
+        let mask = roundedRect(flipped(screen), radius: style.cornerRadius * screen.width, color: .white)
+        return placed.applyingFilter("CISourceInCompositing", parameters: [kCIInputBackgroundImageKey: mask])
+    }
 
+    /// The pointer tip in canvas coordinates (top-left origin); nil while it is outside the recorded area.
+    private func cursorTip(_ state: FrameState) -> CGPoint? {
+        guard let point = state.cursor, CGRect(origin: .zero, size: log.sourceSize).insetBy(dx: -2, dy: -2).contains(point) else { return nil }
+        let screen = state.screenRect
         let canvasPerSourcePixel = screen.width / log.sourceSize.width
-        let canvasPerPoint = canvasPerSourcePixel * log.pointPixelScale * style.cursorScale
+        return CGPoint(x: screen.minX + point.x * canvasPerSourcePixel, y: screen.minY + point.y * canvasPerSourcePixel)
+    }
+
+    private func cursorLayer(_ cursor: CursorImage, tip: CGPoint, screen: CGRect) -> CIImage {
+        let canvasPerPoint = screen.width / log.sourceSize.width * log.pointPixelScale * style.cursorScale
         let size = CGSize(width: cursor.size.width * canvasPerPoint, height: cursor.size.height * canvasPerPoint)
-        let tip = CGPoint(x: screen.minX + point.x * canvasPerSourcePixel, y: screen.minY + point.y * canvasPerSourcePixel)
         let topLeft = CGPoint(x: tip.x - cursor.hotspot.x * canvasPerPoint, y: tip.y - cursor.hotspot.y * canvasPerPoint)
         let frame = flipped(CGRect(origin: topLeft, size: size))
         return cursor.image.transformed(by: placement(of: cursor.image.extent.size, in: frame))
+    }
+
+    /// Equal-weight mean of premultiplied images. CIColorMatrix works on unpremultiplied color,
+    /// so scaling alpha alone scales the premultiplied pixel.
+    static func average(_ images: [CIImage]) -> CIImage {
+        guard images.count > 1 else { return images.first ?? .empty() }
+        let weight = CIVector(x: 0, y: 0, z: 0, w: 1 / CGFloat(images.count))
+        return images
+            .map { $0.applyingFilter("CIColorMatrix", parameters: ["inputAVector": weight]) }
+            .reduce(CIImage.empty()) { $1.applyingFilter("CIAdditionCompositing", parameters: [kCIInputBackgroundImageKey: $0]) }
     }
 
     /// The part of the screen under the base center, so the backdrop drifts along with the zoom.

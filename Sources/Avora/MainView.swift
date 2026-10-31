@@ -4,6 +4,7 @@ struct MainView: View {
     @ObservedObject var controller: RecordingController
     @ObservedObject var preferences: Preferences
     let openVideos: () -> Void
+    let openSettings: () -> Void
     /// Space kept free at the top for the window buttons.
     var titlebarHeight: CGFloat = 32
 
@@ -30,7 +31,22 @@ struct MainView: View {
                 }
                 HStack {
                     Button("Open Videos Folder", action: openVideos).buttonStyle(GhostButtonStyle())
+                    Button(action: openSettings) { Image(systemName: "gearshape") }
+                        .buttonStyle(GhostButtonStyle())
+                        .help("Settings")
+                        .accessibilityLabel("Settings")
                     Spacer()
+                    if controller.state == .idle {
+                        Picker("Record", selection: $preferences.captureMode) {
+                            Image(systemName: "display").help("Whole screen").tag(CaptureMode.screen)
+                            Image(systemName: "macwindow").help("One window").tag(CaptureMode.window)
+                            Image(systemName: "rectangle.dashed").help("An area you drag out").tag(CaptureMode.area)
+                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
+                        .accessibilityLabel("Capture")
+                    }
                     RecordControl(controller: controller)
                 }
                 .padding(.top, 18)
@@ -131,7 +147,7 @@ private struct StatusPill: View {
         switch state {
         case .idle: "Ready · \(NSScreen.main?.localizedName ?? "Display")"
         case .starting: "Starting"
-        case .recording: "Recording"
+        case .recording(let timer): timer.isPaused ? "Paused" : "Recording"
         case .rendering: "Rendering"
         }
     }
@@ -147,26 +163,33 @@ private struct RecordControl: View {
                 HStack(spacing: 9) {
                     Circle().fill(.white).frame(width: 10, height: 10)
                     Text("Start Recording")
-                    Text("⌘R").opacity(0.75).font(.system(size: 11))
+                    Text(Shortcut.toggleRecording.display).opacity(0.75).font(.system(size: 11))
                 }
             }
             .buttonStyle(PrimaryButtonStyle(fill: Brand.orange, text: .white))
-            .keyboardShortcut("r", modifiers: .command)
 
         case .starting:
             Button("Starting…") {}.buttonStyle(PrimaryButtonStyle(fill: Brand.orange.opacity(0.5), text: .white)).disabled(true)
 
-        case .recording(let since):
-            Button { Task { await controller.toggle() } } label: {
-                HStack(spacing: 9) {
-                    RoundedRectangle(cornerRadius: 2).fill(Brand.ink).frame(width: 10, height: 10)
-                    TimelineView(.periodic(from: since, by: 1)) { context in
-                        Text("Stop · \(elapsed(since, context.date))").monospacedDigit()
+        case .recording(let timer):
+            HStack(spacing: 8) {
+                Button { controller.togglePause() } label: {
+                    Image(systemName: timer.isPaused ? "play.fill" : "pause.fill")
+                }
+                .buttonStyle(GhostButtonStyle())
+                .help(timer.isPaused ? "Resume (\(Shortcut.togglePause.display))" : "Pause (\(Shortcut.togglePause.display))")
+                .accessibilityLabel(timer.isPaused ? "Resume Recording" : "Pause Recording")
+
+                Button { Task { await controller.toggle() } } label: {
+                    HStack(spacing: 9) {
+                        RoundedRectangle(cornerRadius: 2).fill(Brand.ink).frame(width: 10, height: 10)
+                        TimelineView(.periodic(from: timer.started, by: 1)) { context in
+                            Text("Stop · \(elapsed(timer.elapsed(at: context.date)))").monospacedDigit()
+                        }
                     }
                 }
+                .buttonStyle(PrimaryButtonStyle(fill: Color(white: 0.93), text: Brand.ink))
             }
-            .buttonStyle(PrimaryButtonStyle(fill: Color(white: 0.93), text: Brand.ink))
-            .keyboardShortcut("r", modifiers: .command)
 
         case .rendering(let progress):
             HStack(spacing: 10) {
@@ -177,8 +200,8 @@ private struct RecordControl: View {
         }
     }
 
-    private func elapsed(_ since: Date, _ now: Date) -> String {
-        let seconds = max(Int(now.timeIntervalSince(since)), 0)
+    private func elapsed(_ interval: TimeInterval) -> String {
+        let seconds = Int(interval)
         return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
