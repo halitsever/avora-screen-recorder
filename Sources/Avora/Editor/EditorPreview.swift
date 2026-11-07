@@ -62,12 +62,13 @@ struct PreviewAsset {
     let audioMix: AVAudioMix?
     let duration: CMTime
     let clips: ClipList
+    let voice: VoicePreset
 
     static func make(for folder: RecordingFolder, duration seconds: Double, clips: ClipList, voice: VoicePreset) async throws -> PreviewAsset {
         let timeline = try await TimelineComposition.make(for: folder, sourceDuration: seconds, clips: clips, video: true, voice: voice)
         guard let videoTrackID = timeline.videoTrackID else { throw ExportError.noVideoTrack }
         return PreviewAsset(composition: timeline.composition, videoTrackID: videoTrackID, cameraTrackID: timeline.cameraTrackID, audioMix: timeline.audioMix,
-                            duration: .seconds(timeline.duration), clips: clips)
+                            duration: .seconds(timeline.duration), clips: clips, voice: voice)
     }
 
     func videoComposition(renderer: FrameRenderer, fps: Double) -> AVMutableVideoComposition {

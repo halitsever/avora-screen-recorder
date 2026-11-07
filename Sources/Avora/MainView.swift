@@ -100,9 +100,10 @@ private struct PreviewStage: View {
     }
 }
 
-private struct Swatch: View {
+struct Swatch: View {
     let preset: BackgroundPreset
     let isSelected: Bool
+    var ring = Brand.orange
     let select: () -> Void
 
     var body: some View {
@@ -113,7 +114,7 @@ private struct Swatch: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
                 .padding(3)
-                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isSelected ? Brand.orange : .clear, lineWidth: 2))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(isSelected ? ring : .clear, lineWidth: 2))
         }
         .buttonStyle(.plain)
         .help(preset.name)

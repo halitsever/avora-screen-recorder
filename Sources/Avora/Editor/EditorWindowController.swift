@@ -14,17 +14,20 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
         }
         do {
             let model = try EditorModel(folder: folder)
-            let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 1120, height: 780),
-                                  styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
-            window.title = "Edit Zooms"
+            // The editor fills the screen it opens on; the green button still takes it full screen.
+            let screen = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame ?? CGRect(x: 0, y: 0, width: 1440, height: 900)
+            let window = NSWindow(contentRect: screen, styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            window.title = "Avora Editor"
             window.subtitle = folder.url.lastPathComponent
             window.appearance = NSAppearance(named: .darkAqua)
-            window.backgroundColor = Brand.inkColor
-            window.minSize = CGSize(width: 860, height: 620)
+            window.titlebarAppearsTransparent = true
+            window.backgroundColor = Palette.backgroundColor
+            window.collectionBehavior.insert(.fullScreenPrimary)
+            window.minSize = CGSize(width: 1100, height: 700)
             window.contentView = NSHostingView(rootView: EditorView(model: model))
             window.isReleasedWhenClosed = false
             window.delegate = self
-            window.center()
+            window.setFrame(screen, display: false)
             windows[folder.url] = (window, model, keyMonitor(for: window, model: model))
             show(window)
             Task { await model.load() }
@@ -61,11 +64,16 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
                 case ("z", [.command]): model.undo()
                 case ("z", [.command, .shift]): model.redo()
                 case ("c", [.command]): Task { await model.copyFrame() }
+                case ("=", [.command]), ("+", [.command]), ("=", [.command, .shift]), ("+", [.command, .shift]):
+                    model.viewport.zoom(by: 1.6, around: model.time)
+                case ("-", [.command]): model.viewport.zoom(by: 1 / 1.6, around: model.time)
+                case ("0", [.command]): model.viewport.fit()
                 default: return event
                 }
                 return nil
             }
             guard modifiers.subtracting(.shift).isEmpty else { return event }
+            let stride = modifiers.contains(.shift) ? 1.0 : 0.1
             switch event.keyCode {
             case 49:
                 model.togglePlay()
@@ -75,6 +83,16 @@ final class EditorWindowController: NSObject, NSWindowDelegate {
                 model.selection = nil
             case 1:
                 model.splitAtPlayhead()
+            case 6:
+                if !model.addAtPlayhead(in: .zooms) { NSSound.beep() }
+            case 123:
+                model.step(by: -stride)
+            case 124:
+                model.step(by: stride)
+            case 115:
+                model.seek(to: 0)
+            case 119:
+                model.seek(to: model.duration)
             default:
                 guard let digit = event.charactersIgnoringModifiers.flatMap(Int.init), (1...9).contains(digit) else { return event }
                 model.setLevel(1 + Double(digit - 1) * 0.2)

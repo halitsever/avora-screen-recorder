@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- The editor opens filling the screen, with a bigger preview and a timeline that zooms (pinch, ⌘-scroll, ⌘= and ⌘−) and scrolls.
+- Clicking a block on the timeline selects it again, so ⌫ deletes it and its edges can be dragged. The hit area of every block used to sit at the left end of its row.
+- Dragging a block or an edge follows the pointer one to one, and edges snap to the playhead and to other blocks.
+- The inspector takes a typed start, end or length, and has tabs for the backdrop, frame and shape, cursor, camera, captions and export settings, with the preview updating as they change.
+- Right-click a block for its level, speed, layout or kind, to jump to it, or to set an edge at the playhead.
+- New editor keys: ← and → move the playhead, Z adds a zoom at the playhead, ⌘0 fits the timeline.
+- The editor and Settings use neutral zinc colors in place of orange.
+
 ## 0.2.0 - 2026-11-01
 
 - Start and stop recording from any app with ⌃⌥⌘R.

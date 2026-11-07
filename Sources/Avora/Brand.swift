@@ -53,3 +53,28 @@ enum BackgroundThumbnails {
         return image
     }
 }
+
+/// shadcn/ui's dark zinc colors for the editor and Settings, which leave color to what needs telling apart.
+enum Palette {
+    static let background = Color(rgb: 0x09090B)
+    static let backgroundColor = NSColor(srgbRed: 0x09 / 255, green: 0x09 / 255, blue: 0x0B / 255, alpha: 1)
+    static let surface = Color(rgb: 0x18181B)
+    static let border = Color(rgb: 0x27272A)
+    static let muted = Color(rgb: 0xA1A1AA)
+    static let foreground = Color(rgb: 0xFAFAFA)
+    /// Controls take this instead of an accent color.
+    static let tint = Color(rgb: 0xE4E4E7)
+}
+
+/// shadcn's primary button: near-white with dark text.
+struct SolidButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 13, weight: .medium))
+            .foregroundStyle(Palette.background)
+            .padding(.horizontal, 14).frame(height: 30)
+            .background(Palette.foreground.opacity(configuration.isPressed ? 0.85 : isEnabled ? 1 : 0.5), in: RoundedRectangle(cornerRadius: 7))
+    }
+}
