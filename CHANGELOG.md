@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 - 2026-11-07
 
 - The editor opens filling the screen, with a bigger preview and a timeline that zooms (pinch, ⌘-scroll, ⌘= and ⌘−) and scrolls.
 - Clicking a block on the timeline selects it again, so ⌫ deletes it and its edges can be dragged. The hit area of every block used to sit at the left end of its row.
