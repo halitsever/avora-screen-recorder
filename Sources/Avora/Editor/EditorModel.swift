@@ -1,5 +1,6 @@
 import AVFoundation
 import AppKit
+import Combine
 import UniformTypeIdentifiers
 import ZoomEngine
 
@@ -8,7 +9,7 @@ enum Lane: Hashable {
     case clips, zooms, cursor, camera, masks, captions
 }
 
-struct LaneSelection: Equatable {
+struct LaneSelection: Hashable {
     var lane: Lane
     var index: Int
 }
@@ -27,6 +28,10 @@ final class EditorModel: ObservableObject {
     let hasCamera: Bool
     /// Moments keys were pressed, when the recording noted them.
     let typing: [Double]
+    /// True when the recording noted shortcuts, so the badge has something to show.
+    let hasKeys: Bool
+    let preferences: Preferences
+    let viewport: TimelineViewport
 
     @Published private(set) var clips: ClipList
     @Published private(set) var zooms: ZoomTimeline
@@ -64,11 +69,13 @@ final class EditorModel: ObservableObject {
     private var preview: PreviewAsset?
     private var timeObserver: Any?
     private var refreshTask: Task<Void, Never>?
-    private let preferences = Preferences.shared
+    private var styleWatch: AnyCancellable?
 
-    init(folder: RecordingFolder) throws {
+    init(folder: RecordingFolder, preferences: Preferences = .shared) throws {
         self.folder = folder
+        self.preferences = preferences
         log = try JSONDecoder().decode(InputLog.self, from: Data(contentsOf: folder.log))
+        viewport = TimelineViewport(duration: log.duration)
         clickTimes = log.clicks.filter(\.isDown).map(\.time)
         let saved = folder.loadEdits()
         zoomsEdited = saved?.zooms != nil
@@ -81,8 +88,14 @@ final class EditorModel: ObservableObject {
         hasCaptions = saved?.captions != nil
         hasCamera = folder.loadCamera() != nil
         typing = folder.loadTyping()
+        hasKeys = !folder.loadKeys().isEmpty
         crop = saved?.crop
         zooms = saved?.zooms.map { ZoomTimeline(segments: $0, duration: duration) } ?? automaticZooms()
+        // Published values arrive before they are stored, so the preview reads them a moment later.
+        styleWatch = preferences.$settings.dropFirst().map { _ in () }
+            .merge(with: preferences.$backgroundID.dropFirst().map { _ in () })
+            .debounce(for: .milliseconds(60), scheduler: DispatchQueue.main)
+            .sink { [weak self] in self?.styleChanged() }
     }
 
     func load() async {
@@ -118,6 +131,10 @@ final class EditorModel: ObservableObject {
         let output = clips.outputTime(snappingSource: min(max(source, 0), duration))
         time = clips.sourceTime(atOutput: output)
         player.seek(to: .seconds(output), toleranceBefore: .zero, toleranceAfter: .zero)
+    }
+
+    func step(by seconds: Double) {
+        seek(to: time + seconds)
     }
 
     // MARK: Lanes
@@ -158,6 +175,32 @@ final class EditorModel: ObservableObject {
         selection = added.map { LaneSelection(lane: lane, index: $0) }
     }
 
+    /// Selects what is already under the playhead instead of failing quietly. False when nothing fits.
+    @discardableResult
+    func addAtPlayhead(in lane: Lane) -> Bool {
+        if lane != .masks, let existing = index(in: lane, at: time) {
+            selection = LaneSelection(lane: lane, index: existing)
+            return true
+        }
+        add(in: lane, at: time)
+        return selection?.lane == lane
+    }
+
+    func index(in lane: Lane, at time: Double) -> Int? {
+        spans(in: lane).firstIndex { $0.start <= time && time <= $0.end }
+    }
+
+    /// Edges a dragged span can snap to: the playhead and the edges of every other span.
+    func snapTimes(excluding target: LaneSelection) -> [Double] {
+        var times = [0, duration, time]
+        for lane in [Lane.clips, .zooms, .cursor, .camera, .masks, .captions] {
+            for (index, span) in spans(in: lane).enumerated() where LaneSelection(lane: lane, index: index) != target {
+                times += [span.start, span.end]
+            }
+        }
+        return times
+    }
+
     /// Removing a clip cuts that part out of the video; the last clip always stays.
     func removeSelected() {
         guard let selection, isValid(selection) else { return }
@@ -180,6 +223,10 @@ final class EditorModel: ObservableObject {
     /// Clips keep their place in the recording, so only zooms and hidden ranges move.
     func move(_ target: LaneSelection, to start: Double) {
         beginDrag(target)
+        moveSpan(target, to: start)
+    }
+
+    private func moveSpan(_ target: LaneSelection, to start: Double) {
         switch target.lane {
         case .clips: break
         case .zooms: zooms.move(target.index, to: start)
@@ -192,6 +239,40 @@ final class EditorModel: ObservableObject {
 
     func setStart(_ target: LaneSelection, to time: Double) {
         beginDrag(target)
+        moveStart(target, to: time)
+    }
+
+    func setEnd(_ target: LaneSelection, to time: Double) {
+        beginDrag(target)
+        moveEnd(target, to: time)
+    }
+
+    /// Timing typed into the inspector, as one undo step. Returns where the span ended up.
+    @discardableResult
+    func setTiming(_ target: LaneSelection, start: Double? = nil, end: Double? = nil) -> (start: Double, end: Double)? {
+        guard isValid(target) else { return nil }
+        let current = spans(in: target.lane)[target.index]
+        change {
+            if target.lane == .zooms { zoomsEdited = true }
+            // A start typed past the end, or an end before the start, means the span should go there.
+            // Otherwise the edges trim, growing to the right first so a span can pass its old end.
+            let movable = target.lane != .clips
+            if movable, let start, end == nil, start >= current.end {
+                moveSpan(target, to: start)
+            } else if movable, let end, start == nil, end <= current.start {
+                moveSpan(target, to: end - (current.end - current.start))
+            } else if let end, end > current.end {
+                moveEnd(target, to: end)
+                if let start { moveStart(target, to: start) }
+            } else {
+                if let start { moveStart(target, to: start) }
+                if let end { moveEnd(target, to: end) }
+            }
+        }
+        return spans(in: target.lane)[target.index]
+    }
+
+    private func moveStart(_ target: LaneSelection, to time: Double) {
         switch target.lane {
         case .clips: clips.setStart(target.index, to: time)
         case .zooms: zooms.setStart(target.index, to: time)
@@ -202,8 +283,7 @@ final class EditorModel: ObservableObject {
         }
     }
 
-    func setEnd(_ target: LaneSelection, to time: Double) {
-        beginDrag(target)
+    private func moveEnd(_ target: LaneSelection, to time: Double) {
         switch target.lane {
         case .clips: clips.setEnd(target.index, to: time)
         case .zooms: zooms.setEnd(target.index, to: time)
@@ -316,7 +396,12 @@ final class EditorModel: ObservableObject {
 
     func setCaptionText(_ text: String) {
         guard let selection, selectedCaption != nil else { return }
-        change(coalescing: "captionText") { captions.update(selection.index) { $0.text = text } }
+        setCaptionText(text, at: selection.index)
+    }
+
+    func setCaptionText(_ text: String, at index: Int) {
+        guard captions.segments.indices.contains(index) else { return }
+        change(coalescing: "captionText\(index)") { captions.update(index) { $0.text = text } }
     }
 
     /// Writes captions from what was said, replacing any there were.
@@ -471,6 +556,12 @@ final class EditorModel: ObservableObject {
         }
     }
 
+    /// Zooms nobody edited follow the zoom setting, like they do for a new recording.
+    private func styleChanged() {
+        if !zoomsEdited { zooms = automaticZooms() }
+        refreshPreview()
+    }
+
     private func automaticZooms() -> ZoomTimeline {
         let config = ZoomConfig(scale: preferences.settings.zoom)
         return ZoomTimeline(segments: ZoomSegments.make(clickTimes: clickTimes, duration: duration, config: config), duration: duration)
@@ -546,7 +637,7 @@ final class EditorModel: ObservableObject {
         refreshTask = Task { [weak self] in
             if !immediately { try? await Task.sleep(for: .milliseconds(120)) }
             guard let self else { return }
-            if preview?.clips != clips {
+            if preview?.clips != clips || preview?.voice != style.voice {
                 do {
                     let asset = try await PreviewAsset.make(for: folder, duration: duration, clips: clips, voice: style.voice)
                     guard !Task.isCancelled else { return }
