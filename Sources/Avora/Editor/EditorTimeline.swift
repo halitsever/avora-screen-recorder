@@ -297,6 +297,8 @@ private struct LaneTrack: View {
     let width: CGFloat
     let snapping: Bool
     @State private var drag: DragState?
+    /** Resets when a press ends or is cancelled. A cancelled gesture never calls onEnded. */
+    @GestureState private var pressing = false
 
     private struct DragState {
         var target: LaneSelection
@@ -337,6 +339,7 @@ private struct LaneTrack: View {
         }
         .frame(width: width, height: height)
         .coordinateSpace(name: Self.space)
+        .onChange(of: pressing) { _, now in if !now { finish() } }
     }
 
     static let space = "lane"
@@ -376,9 +379,11 @@ private struct LaneTrack: View {
     }
 
     private func begin(_ target: LaneSelection, _ span: (start: Double, end: Double)) {
+        if model.selection != target {
+            endTextEditing()
+            model.selection = target
+        }
         guard drag?.target != target else { return }
-        endTextEditing()
-        model.selection = target
         drag = DragState(target: target, start: span.start, end: span.end)
     }
 
@@ -390,6 +395,7 @@ private struct LaneTrack: View {
     /// Measured in the lane, since the block moves under the pointer while it is dragged.
     private func move(_ target: LaneSelection, _ span: (start: Double, end: Double)) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named(LaneTrack.space))
+            .updating($pressing) { _, state, _ in state = true }
             .onChanged { value in
                 begin(target, span)
                 // Clips keep their place in the recording; only their edges trim.
@@ -509,7 +515,7 @@ private struct EdgeHandle: View {
     let onDrag: (CGFloat) -> Void
     let onEnd: () -> Void
     @State private var hovering = false
-    @State private var active = false
+    @GestureState private var active = false
 
     var body: some View {
         Color.clear
@@ -525,14 +531,9 @@ private struct EdgeHandle: View {
             .onDisappear { if hovering { NSCursor.pop() } }
             // Measured in the lane, since the grip itself moves with the edge it drags.
             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named(LaneTrack.space))
-                .onChanged { value in
-                    active = true
-                    onDrag(value.translation.width)
-                }
-                .onEnded { _ in
-                    active = false
-                    onEnd()
-                })
+                .updating($active) { _, state, _ in state = true }
+                .onChanged { value in onDrag(value.translation.width) })
+            .onChange(of: active) { _, now in if !now { onEnd() } }
     }
 }
 
