@@ -19,6 +19,8 @@ on:
 jobs:
   test:
     runs-on: macos-26
+    # A hung media test otherwise holds the runner for the full six hours.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - run: swift --version
