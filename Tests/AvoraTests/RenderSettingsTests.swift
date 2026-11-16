@@ -7,12 +7,20 @@ struct RenderSettingsTests {
     private let source = CGSize(width: 3456, height: 2234)
 
     @Test func defaultsMatchTheOriginalLook() {
-        let style = OutputStyle(settings: RenderSettings(), background: .named(nil))
+        let style = OutputStyle(settings: RenderSettings(), background: .named("avora"))
         #expect(style.fps == 60)
         #expect(style.padding == 0.06)
         #expect(style.zoomScale == 2)
         #expect(style.motionBlur == 1)
         #expect(style.cursorSpring == .cursor)
+    }
+
+    @Test func noBackdropFillsTheCanvas() {
+        let style = OutputStyle(settings: RenderSettings(), background: .named(nil))
+        #expect(style.padding == 0)
+        #expect(style.cornerRadius == 0)
+        #expect(style.shadowOpacity == 0)
+        #expect(style.baseRect(in: source, source: source) == CGRect(origin: .zero, size: source))
     }
 
     @Test func storedSettingsWithMissingKeysFallBackToDefaults() throws {

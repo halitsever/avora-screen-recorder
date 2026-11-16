@@ -19,18 +19,18 @@ private func isClose(_ color: (r: Int, g: Int, b: Int), to hex: UInt32, toleranc
 }
 
 struct BackgroundPresetTests {
-    @Test func catalogHasTwelveUniquePresets() {
+    @Test func catalogHasThirteenUniquePresets() {
         let ids = BackgroundPreset.all.map(\.id)
-        #expect(ids.count == 12)
+        #expect(ids.count == 13)
         #expect(Set(ids).count == ids.count)
     }
 
-    @Test func avoraIsTheDefault() {
-        #expect(BackgroundPreset.named(nil).id == "avora")
+    @Test func noBackdropIsTheDefault() {
+        #expect(BackgroundPreset.named(nil).id == "none")
     }
 
     @Test func unknownIDFallsBackToDefault() {
-        #expect(BackgroundPreset.named("no-such-background").id == "avora")
+        #expect(BackgroundPreset.named("no-such-background").id == "none")
     }
 
     @Test func knownIDIsFound() {

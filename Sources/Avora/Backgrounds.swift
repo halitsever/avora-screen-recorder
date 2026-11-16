@@ -38,6 +38,8 @@ enum BackgroundFill: Equatable {
     case solid(RGB)
     /// A picture scaled to cover the canvas and centered.
     case image(URL)
+    /// No backdrop: the recording fills the frame edge to edge.
+    case none
 }
 
 struct BackgroundPreset: Identifiable, Equatable {
@@ -45,9 +47,13 @@ struct BackgroundPreset: Identifiable, Equatable {
     let name: String
     let fill: BackgroundFill
 
-    static let defaultID = "avora"
+    static let noneID = "none"
+    static let defaultID = noneID
+    /// The gradient picked when switching the backdrop type back to Gradient.
+    static let gradientID = "avora"
 
     static let all: [BackgroundPreset] = [
+        BackgroundPreset(id: noneID, name: "None", fill: .none),
         BackgroundPreset(id: "avora", name: "Avora", fill: .linear(from: RGB(0xF26B1D), to: RGB(0xFFD3A1))),
         BackgroundPreset(id: "ember", name: "Ember", fill: .linear(from: RGB(0x2A1A12), to: RGB(0xF26B1D))),
         BackgroundPreset(id: "grove", name: "Grove", fill: .linear(from: RGB(0x2F6B3A), to: RGB(0x121318))),
@@ -69,7 +75,7 @@ struct BackgroundPreset: Identifiable, Equatable {
     ]
 
     /// Presets by id, plus `color:RRGGBB`, `image:<path>` and `wallpaper`. Anything unknown
-    /// falls back to the default gradient.
+    /// falls back to no backdrop.
     static func named(_ id: String?) -> BackgroundPreset {
         let fallback = all.first { $0.id == defaultID }!
         guard let id else { return fallback }
@@ -122,9 +128,12 @@ struct BackgroundPreset: Identifiable, Equatable {
         case let .solid(color):
             return CIImage(color: color.ciColor()).cropped(to: bounds)
 
+        case .none:
+            return CIImage(color: .black).cropped(to: bounds)
+
         case let .image(url):
             guard let picture = CIImage(contentsOf: url), picture.extent.width > 0, picture.extent.height > 0 else {
-                return Self.named(nil).image(size: size)
+                return Self.named(gradientID).image(size: size)
             }
             let scale = max(size.width / picture.extent.width, size.height / picture.extent.height)
             let scaled = picture.transformed(by: CGAffineTransform(translationX: -picture.extent.minX, y: -picture.extent.minY)

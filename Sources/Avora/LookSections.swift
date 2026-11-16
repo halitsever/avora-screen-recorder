@@ -34,16 +34,17 @@ struct SliderRow: View {
     }
 }
 
-/// Gradient, solid color, a picture of your own or the desktop wallpaper, plus blur.
+/// No backdrop, a gradient, solid color, a picture of your own or the desktop wallpaper, plus blur.
 struct BackdropSection: View {
     @ObservedObject var preferences: Preferences
     /// Settings sends people to Avora's window for gradients; the editor lists them here.
     var showsGallery = false
 
-    private enum Kind: Hashable { case gradient, color, image, wallpaper }
+    private enum Kind: Hashable { case none, gradient, color, image, wallpaper }
 
     private var kind: Kind {
         let id = preferences.backgroundID
+        if id == BackgroundPreset.noneID { return .none }
         if id.hasPrefix(BackgroundPreset.colorPrefix) { return .color }
         if id.hasPrefix(BackgroundPreset.imagePrefix) { return .image }
         if id == BackgroundPreset.wallpaperID { return .wallpaper }
@@ -63,12 +64,15 @@ struct BackdropSection: View {
                 .padding(.vertical, 2)
             }
             Picker("Type", selection: Binding(get: { kind }, set: choose)) {
+                Text("None").tag(Kind.none)
                 Text("Gradient").tag(Kind.gradient)
                 Text("Color").tag(Kind.color)
                 Text("Image").tag(Kind.image)
                 Text("Wallpaper").tag(Kind.wallpaper)
             }
             switch kind {
+            case .none:
+                Text("The recording fills the whole video, with no padding, corners or shadow.").font(.caption).foregroundStyle(.secondary)
             case .gradient:
                 if !showsGallery {
                     Text("Pick a gradient in Avora's window or from the Background menu.").font(.caption).foregroundStyle(.secondary)
@@ -85,7 +89,9 @@ struct BackdropSection: View {
             case .wallpaper:
                 Text("Uses your current desktop picture.").font(.caption).foregroundStyle(.secondary)
             }
-            SliderRow("Blur", value: $preferences.settings.backgroundBlur, in: 0...1) { "\(Int(($0 * 100).rounded()))%" }
+            if kind != Kind.none {
+                SliderRow("Blur", value: $preferences.settings.backgroundBlur, in: 0...1) { "\(Int(($0 * 100).rounded()))%" }
+            }
         }
     }
 
@@ -96,7 +102,8 @@ struct BackdropSection: View {
 
     private func choose(_ kind: Kind) {
         switch kind {
-        case .gradient: preferences.backgroundID = BackgroundPreset.defaultID
+        case .none: preferences.backgroundID = BackgroundPreset.noneID
+        case .gradient: preferences.backgroundID = BackgroundPreset.gradientID
         case .color: preferences.backgroundID = BackgroundPreset.colorPrefix + "121318"
         case .image: chooseImage()
         case .wallpaper: preferences.backgroundID = BackgroundPreset.wallpaperID

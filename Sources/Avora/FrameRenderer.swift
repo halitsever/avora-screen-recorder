@@ -38,6 +38,7 @@ struct OutputStyle {
 
     init(background: BackgroundPreset = .named(nil)) {
         self.background = background
+        fitWithoutBackdrop()
     }
 
     init(settings: RenderSettings, background: BackgroundPreset) {
@@ -67,6 +68,16 @@ struct OutputStyle {
         burnsCaptions = settings.burnsCaptions
         savesSubtitles = settings.savesSubtitles
         captionLocale = settings.captionLocale
+        fitWithoutBackdrop()
+    }
+
+    /** With no backdrop there is nothing to frame, so the screen fills the canvas. */
+    private mutating func fitWithoutBackdrop() {
+        guard background.fill == BackgroundFill.none else { return }
+        padding = 0
+        cornerRadius = 0
+        shadowOpacity = 0
+        backgroundBlur = 0
     }
 
     /// The resolution sets the short side of a fixed ratio, so vertical 1080p is 1080×1920.

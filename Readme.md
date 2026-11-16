@@ -25,7 +25,7 @@
 - 📷 [**Camera**](https://halitsever.github.io/avora-screen-recorder/#using) - a bubble in any corner that steps aside when the screen zooms in, or side by side and full screen, lined up with your voice.
 - 💬 [**Captions**](https://halitsever.github.io/avora-screen-recorder/#using) - captions written on your Mac from what you say, burned in or saved as .srt.
 - 🪟 [**Screen, window or area**](https://halitsever.github.io/avora-screen-recorder/#using) - record the whole display, one window or an area you drag out, and pause with ⌃⌥⌘P.
-- 🎨 [**Backgrounds**](https://halitsever.github.io/avora-screen-recorder/#backgrounds) - twelve gradients, a color, your own picture or your wallpaper, behind a screen with rounded corners and a soft shadow.
+- 🎨 [**Backgrounds**](https://halitsever.github.io/avora-screen-recorder/#backgrounds) - off by default, so the recording fills the video. Turn one on for twelve gradients, a color, your own picture or your wallpaper, behind a screen with rounded corners and a soft shadow.
 - 🧭 [**Menu bar first**](https://halitsever.github.io/avora-screen-recorder/#using) - start and stop recording from the menu bar, Avora's own window, or ⌃⌥⌘R in any app.
 - ✂️ [**Editor**](https://halitsever.github.io/avora-screen-recorder/#using) - cut, split and speed up clips or just the typing, adjust zooms, blur private info and faces automatically, crop, edit captions, with undo.
 - ⌨️ [**Cursor and shortcuts**](https://halitsever.github.io/avora-screen-recorder/#using) - click effects, a cursor that fades when idle, and a badge for the shortcuts you press.
