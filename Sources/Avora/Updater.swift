@@ -54,6 +54,8 @@ final class Updater {
     private(set) var available: AppUpdate?
     private(set) var isInstalling = false
     var onChange: (() -> Void)?
+    /** Checked again after the download, since a recording may have started meanwhile. */
+    var isBusy: () -> Bool = { false }
     private var timer: Timer?
 
     func startChecking() {
@@ -101,11 +103,17 @@ final class Updater {
         let (zip, _) = try await URLSession.shared.download(from: update.download)
         // On the app's volume, so the final move is a rename.
         let work = try FileManager.default.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: target, create: true)
-        try await Task.detached { try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, work.path]) }.value
         let app = work.appending(path: "Avora.app")
-        guard let bundle = Bundle(url: app), bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
-              bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == update.version
-        else { throw UpdateError.badDownload }
+        do {
+            try await Task.detached { try Self.run("/usr/bin/ditto", ["-x", "-k", zip.path, work.path]) }.value
+            guard let bundle = Bundle(url: app), bundle.bundleIdentifier == Bundle.main.bundleIdentifier,
+                  bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String == update.version
+            else { throw UpdateError.badDownload }
+            guard !isBusy() else { throw UpdateError.busy }
+        } catch {
+            try? FileManager.default.removeItem(at: work)
+            throw error
+        }
 
         let script = """
         while kill -0 "$1" 2>/dev/null; do sleep 0.2; done

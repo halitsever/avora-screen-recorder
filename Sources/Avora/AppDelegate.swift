@@ -36,6 +36,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         Task.detached(priority: .utility) { RawRecordings.removeExpired() }
         offerRecovery()
         updater.onChange = { [weak self] in self?.refreshButton() }
+        updater.isBusy = { [weak self] in self?.controller.state != .idle }
         updater.startChecking()
     }
 
