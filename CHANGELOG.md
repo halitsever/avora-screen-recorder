@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 - 2026-11-16
+
+- An update waits if a recording starts while it downloads, instead of quitting in the middle of it.
+- The documentation site covers downloading Avora, updates and the default backdrop.
+
 ## 0.4.1 - 2026-11-16
 
 - Each release comes with a ready-built `Avora.zip`.
