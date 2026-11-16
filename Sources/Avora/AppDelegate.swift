@@ -11,6 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     )
     private lazy var settingsWindow = SettingsWindowController(preferences: preferences)
     private let editor = EditorWindowController()
+    private let updater = Updater()
     private var statusItem: NSStatusItem!
     private var clock: Timer?
     private var hotKeys: [GlobalHotKey] = []
@@ -34,6 +35,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         register(.restart) { [weak self] in self?.restartRecording() }
         Task.detached(priority: .utility) { RawRecordings.removeExpired() }
         offerRecovery()
+        updater.onChange = { [weak self] in self?.refreshButton() }
+        updater.startChecking()
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
@@ -73,6 +76,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(item("Open Videos Folder", #selector(openVideosFromMenu), key: ""))
         menu.addItem(clearItem())
         menu.addItem(.separator())
+        menu.addItem(updateItem())
         menu.addItem(item("Quit Avora", #selector(NSApplication.terminate(_:)), key: "q", target: NSApp))
     }
 
@@ -205,6 +209,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         switch alert.runModal() {
         case .alertFirstButtonReturn: Task { await controller.recover(folder) }
         case .alertSecondButtonReturn: try? FileManager.default.removeItem(at: folder.url)
+        default: break
+        }
+    }
+
+    private func updateItem() -> NSMenuItem {
+        if updater.isInstalling { return NSMenuItem(title: "Downloading Update…", action: nil, keyEquivalent: "") }
+        if let update = updater.available { return item("Update to Avora \(update.version)…", #selector(installUpdate), key: "") }
+        return item("Check for Updates…", #selector(checkForUpdates), key: "")
+    }
+
+    @objc private func checkForUpdates() {
+        Task {
+            do {
+                if let update = try await updater.check() {
+                    offer(update)
+                } else {
+                    let alert = NSAlert()
+                    alert.messageText = "Avora is up to date"
+                    alert.informativeText = "Version \(AppVersion.current) is the newest one."
+                    NSApp.activate(ignoringOtherApps: true)
+                    alert.runModal()
+                }
+            } catch {
+                show(error)
+            }
+        }
+    }
+
+    @objc private func installUpdate() {
+        if let update = updater.available { offer(update) }
+    }
+
+    private func offer(_ update: AppUpdate) {
+        let alert = NSAlert()
+        alert.messageText = "Install Avora \(update.version)?"
+        alert.informativeText = "You have \(AppVersion.current). Avora restarts after the update, and macOS asks for Screen Recording permission again."
+        alert.addButton(withTitle: "Install and Restart")
+        alert.addButton(withTitle: "Release Notes")
+        alert.addButton(withTitle: "Later")
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            guard controller.state == .idle else {
+                show(UpdateError.busy)
+                return
+            }
+            Task {
+                do { try await updater.install(update) } catch { show(error) }
+            }
+        case .alertSecondButtonReturn:
+            NSWorkspace.shared.open(update.page)
         default: break
         }
     }

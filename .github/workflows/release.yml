@@ -1,0 +1,32 @@
+name: Release
+
+# Attaches the built app to each published release, which the in-app updater installs.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build, like v0.4.1
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  app:
+    runs-on: macos-26
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - name: Check the version matches the tag
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Resources/Info.plist)
+          test "v$version" = "$TAG" || { echo "Info.plist says $version, tag is $TAG"; exit 1; }
+      - run: ./scripts/build-app.sh
+      - run: ditto -c -k --keepParent build/Avora.app Avora.zip
+      - run: gh release upload "$TAG" Avora.zip --clobber

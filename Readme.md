@@ -36,7 +36,9 @@
 <img src="https://halitsever-api.vercel.app/api/installation"/>
 </p>
 
-Avora needs macOS 14 or later and Xcode 16 or later. Build the app and open it:
+Avora needs macOS 14 or later. Download `Avora.zip` from the [latest release](https://github.com/halitsever/avora-screen-recorder/releases/latest), unzip it and move Avora to Applications. The app isn't notarized yet, so right-click it and choose **Open** the first time. Avora looks for a new release once a day and shows **Update to Avora…** in the menu when there is one; **Check for Updates…** looks right away. Updates install with one click, then macOS asks for Screen Recording permission again.
+
+To build it yourself you also need Xcode 16 or later:
 
 ```sh
 ./scripts/build-app.sh
