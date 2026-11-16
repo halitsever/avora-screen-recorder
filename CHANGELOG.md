@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.0 - 2026-11-16
+
+- Videos have no backdrop by default: the recording fills the frame with no padding, corners or shadow. Pick **None** or a backdrop type in the window, the Background menu or Settings, or pass `--background none`.
+- Clicking a block on the timeline always selects it. A click could be ignored before, so the first part of a split clip could not be selected or cut.
+
 ## 0.3.0 - 2026-11-07
 
 - The editor opens filling the screen, with a bigger preview and a timeline that zooms (pinch, ⌘-scroll, ⌘= and ⌘−) and scrolls.
