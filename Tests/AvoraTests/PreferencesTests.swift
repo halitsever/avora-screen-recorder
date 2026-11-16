@@ -11,7 +11,7 @@ private func freshDefaults() -> UserDefaults {
 
 struct PreferencesTests {
     @Test func startsWithDefaultBackground() {
-        #expect(Preferences(defaults: freshDefaults()).background.id == "avora")
+        #expect(Preferences(defaults: freshDefaults()).background.id == BackgroundPreset.defaultID)
     }
 
     @Test func rememberedBackgroundSurvivesRelaunch() {
@@ -23,7 +23,7 @@ struct PreferencesTests {
     @Test func staleStoredIDFallsBackToDefault() {
         let defaults = freshDefaults()
         defaults.set("removed-preset", forKey: Preferences.backgroundKey)
-        #expect(Preferences(defaults: defaults).background.id == "avora")
+        #expect(Preferences(defaults: defaults).background.id == BackgroundPreset.defaultID)
     }
 
     @Test func editorOpensAfterRecordingUntilTurnedOff() {
