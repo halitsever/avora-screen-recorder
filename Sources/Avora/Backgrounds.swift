@@ -133,7 +133,7 @@ struct BackgroundPreset: Identifiable, Equatable {
 
         case let .image(url):
             guard let picture = CIImage(contentsOf: url), picture.extent.width > 0, picture.extent.height > 0 else {
-                return Self.named(gradientID).image(size: size)
+                return Self.named(Self.gradientID).image(size: size)
             }
             let scale = max(size.width / picture.extent.width, size.height / picture.extent.height)
             let scaled = picture.transformed(by: CGAffineTransform(translationX: -picture.extent.minX, y: -picture.extent.minY)
