@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1 - 2026-11-16
+
+- Each release comes with a ready-built `Avora.zip`.
+- Avora checks for a new release once a day, and **Check for Updates…** in the menu checks right away. **Update to Avora…** downloads the new version, swaps it in and restarts. Install 0.4.1 by hand once; updates after it come through the menu.
+
 ## 0.4.0 - 2026-11-16
 
 - Videos have no backdrop by default: the recording fills the frame with no padding, corners or shadow. Pick **None** or a backdrop type in the window, the Background menu or Settings, or pass `--background none`.
