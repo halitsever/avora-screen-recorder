@@ -11,7 +11,7 @@ titleTemplate: Screen recordings that come out finished
 
 Avora records your Mac and hands back a polished video, with smooth zooms, a clean cursor, sound and a backdrop already in place. Press stop and it is ready to share.
 
-<div class="ctas"><a class="btn primary" href="#install">Build from source</a><a class="btn ghost" href="#using">See what it does ↓</a></div>
+<div class="ctas"><a class="btn primary" href="https://github.com/halitsever/avora-screen-recorder/releases/latest">Download</a><a class="btn ghost" href="#using">See what it does ↓</a></div>
 
 <p class="meta">macOS 14+ · Swift · MIT</p>
 
@@ -72,9 +72,9 @@ Near an edge the zoomed screen slides back until it covers its resting frame aga
 
 <DocSection id="backgrounds" kicker="Backgrounds">
 
-## Twelve backdrops.<br>Pick one, it sticks.
+## No backdrop, or one of twelve.<br>Pick one, it sticks.
 
-Pick a backdrop in the window or from the **Background** submenu in the menu bar, or use a solid color, a picture of your own or your desktop wallpaper from **Settings…**, blurred as much as you like. The choice applies to every video after it. The id under each name is what `--background` takes, along with `color:RRGGBB`, `image:<path>` and `wallpaper`.
+Videos have no backdrop by default: the recording fills the frame with no padding, corners or shadow. Pick a backdrop in the window or from the **Background** submenu in the menu bar, or use a solid color, a picture of your own or your desktop wallpaper from **Settings…**, blurred as much as you like. The choice applies to every video after it. The id under each name is what `--background` takes, along with `none`, `color:RRGGBB`, `image:<path>` and `wallpaper`.
 
 <BackgroundPicker />
 
@@ -82,9 +82,11 @@ Pick a backdrop in the window or from the **Background** submenu in the menu bar
 
 <DocSection id="install" kicker="Install">
 
-## Build it from source.
+## Download it, or build it.
 
-Avora needs macOS 14 or later and Xcode 16 or later. Run the tests with `swift test`.
+Avora needs macOS 14 or later. Download `Avora.zip` from the [latest release](https://github.com/halitsever/avora-screen-recorder/releases/latest), unzip it and move Avora to Applications. The app is signed ad hoc, so open it the first time with right-click, **Open**. Avora checks for a new release once a day, and **Check for Updates…** in the menu installs it and restarts.
+
+To build it yourself you need Xcode 16 or later. Run the tests with `swift test`.
 
 <CardGrid>
 <TypedTerminal :lines="[['$ ', 'git clone https://github.com/halitsever/avora-screen-recorder'], ['$ ', 'cd avora-screen-recorder'], ['$ ', './scripts/build-app.sh'], ['', '# build/Avora.app is ready'], ['$ ', 'open build/Avora.app']]" />
@@ -123,7 +125,7 @@ The zoom logic lives in `Sources/ZoomEngine` with no UI code, and `swift test` c
 <FileTree :rows="[['Sources/', ''], ['ZoomEngine/', 'zoom windows, focus regions, framing, springs, motion trails, timeline edits, the per-frame director', true], ['Avora/', 'menu bar app, windows, editor, capture, camera, audio, captions, renderer, exporter', true], ['Resources/', 'Info.plist, app icon, menu bar icon, logo, Sora font'], ['Tests/', 'the engine, backgrounds and preferences']]" />
 <InfoCard title="Not done yet">
 
-- Downloads signed for macOS; build from source for now
+- Downloads signed with a Developer ID and notarized; they are signed ad hoc for now
 
 </InfoCard>
 </CardGrid>
