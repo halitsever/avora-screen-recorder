@@ -1,0 +1,19 @@
+# Avora
+
+> Avora is an open-source macOS screen recorder written in Swift with ScreenCaptureKit. It zooms in on every click, draws a smooth cursor, records microphone, system audio and camera, writes captions on the Mac and exports MP4, HEVC, ProRes or GIF.
+
+Download Avora.zip from https://github.com/halitsever/avora-screen-recorder/releases/latest and move Avora to Applications. It needs macOS 14 or later and Screen Recording permission. Builds are signed ad hoc, so open it the first time with right-click, Open.
+
+## Docs
+
+- [Using Avora](https://halitsever.github.io/avora-screen-recorder/#using): recording the screen, a window or an area, sound, camera, captions, keyboard badges and the editor
+- [Automatic zoom](https://halitsever.github.io/avora-screen-recorder/#zoom): how clicks become zooms and how the camera follows your work
+- [Backgrounds](https://halitsever.github.io/avora-screen-recorder/#backgrounds): no backdrop by default, gradients, colors, pictures and wallpaper
+- [Install](https://halitsever.github.io/avora-screen-recorder/#install): download, updates, building from source and re-rendering a recording from the command line
+- [Under the hood](https://halitsever.github.io/avora-screen-recorder/#hood): export settings, presets and the source layout
+
+## Optional
+
+- [Source](https://github.com/halitsever/avora-screen-recorder): repository
+- [Changelog](https://github.com/halitsever/avora-screen-recorder/blob/main/CHANGELOG.md): changes per release
+- [Releases](https://github.com/halitsever/avora-screen-recorder/releases): downloads

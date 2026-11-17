@@ -1,13 +1,13 @@
 <p align="center" class="logo-section">
-<img src="Resources/Brand/AppIcon/avora-icon-256.png" height="80" width="80"/>
+<img src="Resources/Brand/AppIcon/avora-icon-256.png" alt="Avora app icon" height="80" width="80"/>
 </br>
 <img src="https://halitsever-api.vercel.app/api/repo-title?title=Avora">
 
 <p align="center">
-🍊 A macOS screen recorder that turns a raw take into a finished, shareable video.<br>
+🍊 Open-source macOS screen recorder with automatic click-to-zoom, a smooth cursor and backgrounds that turns a raw take into a finished, shareable video. Built with Swift and ScreenCaptureKit.<br>
 <br/>
 <br/>
-<img src="https://img.shields.io/github/sponsors/halitsever"/>
+<img src="https://img.shields.io/github/sponsors/halitsever" alt="GitHub Sponsors"/>
 </p>
 <p align="center">
 <a align="center" href="https://halitsever.github.io/avora-screen-recorder/">Documentation</a>
@@ -49,6 +49,11 @@ The first recording asks for Screen Recording permission. Run the tests with `sw
 
 <p align="center" href="https://github.com/halitsever/avora-screen-recorder/issues">
 <img src="https://halitsever-api.vercel.app/api/issue"/>
+</p>
+
+<p align="center">
+Found a bug or have an idea? Open an <a href="https://github.com/halitsever/avora-screen-recorder/issues">issue</a>.<br/>
+Read the <a href=".github/CONTRIBUTING.md">contributing guide</a> before sending a pull request.
 </p>
 
 <p align="center">
