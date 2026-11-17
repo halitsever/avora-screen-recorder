@@ -1,6 +1,6 @@
 ---
 title: Avora
-titleTemplate: Screen recordings that come out finished
+titleTemplate: Open source macOS screen recorder with automatic zoom
 ---
 
 <HeroSection>
