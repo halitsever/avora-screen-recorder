@@ -6,21 +6,38 @@ const url = process.env.DOCS_URL ?? 'https://halitsever.github.io/avora-screen-r
 const base = new URL(url).pathname
 const description = 'Open source screen recorder for Mac that zooms in on your clicks, with a smooth cursor and backgrounds. A free Screen Studio alternative.'
 
+const repo = 'https://github.com/halitsever/avora-screen-recorder'
+const license = 'https://opensource.org/licenses/MIT'
+const author = { '@type': 'Person', name: 'Halit Sever', url: 'https://github.com/halitsever' }
+
 const jsonLd = {
   '@context': 'https://schema.org',
-  '@type': 'SoftwareApplication',
-  name: 'Avora',
-  description,
-  url,
-  image: `${url}social.png`,
-  applicationCategory: 'MultimediaApplication',
-  operatingSystem: 'macOS',
-  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-  downloadUrl: 'https://github.com/halitsever/avora-screen-recorder/releases/latest',
-  codeRepository: 'https://github.com/halitsever/avora-screen-recorder',
-  programmingLanguage: 'Swift',
-  license: 'https://opensource.org/licenses/MIT',
-  author: { '@type': 'Person', name: 'Halit Sever', url: 'https://github.com/halitsever' },
+  '@graph': [
+    {
+      '@type': 'SoftwareApplication',
+      '@id': `${url}#app`,
+      name: 'Avora',
+      description,
+      url,
+      image: `${url}social.png`,
+      applicationCategory: 'MultimediaApplication',
+      operatingSystem: 'macOS',
+      offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      downloadUrl: `${repo}/releases/latest`,
+      license,
+      author,
+    },
+    {
+      '@type': 'SoftwareSourceCode',
+      '@id': `${url}#source`,
+      name: 'Avora',
+      codeRepository: repo,
+      programmingLanguage: 'Swift',
+      license,
+      author,
+      targetProduct: { '@id': `${url}#app` },
+    },
+  ],
 }
 
 export default defineConfigWithTheme<AvoraTheme>({
@@ -66,7 +83,7 @@ export default defineConfigWithTheme<AvoraTheme>({
       { text: 'Install', link: '#install' },
       { text: 'vs Screen Studio', link: '/screen-studio-alternative' },
     ],
-    repo: 'https://github.com/halitsever/avora-screen-recorder',
+    repo,
     footer: 'MIT. The Sora font is under the SIL Open Font License.',
   },
 })
