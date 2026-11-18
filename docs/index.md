@@ -1,15 +1,16 @@
 ---
 title: Avora
-titleTemplate: Open source macOS screen recorder with automatic zoom
+titleTemplate: Open Source Screen Recorder for Mac with Auto Zoom
+ogTitle: 'Avora: your screen, already edited'
 ---
 
 <HeroSection>
 
-<p class="eyebrow">Open source screen recorder for macOS</p>
+<p class="eyebrow">Open source screen recorder for Mac</p>
 
 # Your screen,<br><span class="hl">already edited.</span>
 
-Avora records your Mac and hands back a polished video, with smooth zooms, a clean cursor, sound and a backdrop already in place. Press stop and it is ready to share.
+Avora is a free, open source screen recorder for Mac that zooms in on your clicks. It hands back a polished video with smooth zooms, a clean cursor, sound and a backdrop already in place. Press stop and it is ready to share.
 
 <div class="ctas"><a class="btn primary" href="https://github.com/halitsever/avora-screen-recorder/releases/latest">Download</a><a class="btn ghost" href="#using">See what it does ↓</a></div>
 
@@ -87,6 +88,8 @@ Videos have no backdrop by default: the recording fills the frame with no paddin
 Avora needs macOS 14 or later. Download `Avora.zip` from the [latest release](https://github.com/halitsever/avora-screen-recorder/releases/latest), unzip it and move Avora to Applications. The app is signed ad hoc, so open it the first time with right-click, **Open**. Avora checks for a new release once a day, and **Check for Updates…** in the menu installs it and restarts.
 
 To build it yourself you need Xcode 16 or later. Run the tests with `swift test`.
+
+Coming from Screen Studio? Here is [how Avora compares](./screen-studio-alternative), including what it can't do yet.
 
 <CardGrid>
 <TypedTerminal :lines="[['$ ', 'git clone https://github.com/halitsever/avora-screen-recorder'], ['$ ', 'cd avora-screen-recorder'], ['$ ', './scripts/build-app.sh'], ['', '# build/Avora.app is ready'], ['$ ', 'open build/Avora.app']]" />

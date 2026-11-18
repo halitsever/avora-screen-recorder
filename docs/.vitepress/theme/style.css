@@ -274,3 +274,17 @@ div[class*='language-']:hover > button.copy, div[class*='language-'] > button.co
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .hero-tilt { transform: none; }
 }
+
+/* standalone pages */
+.sec-body h1 { margin: 18px 0 26px; font-size: clamp(40px, 6.4vw, 88px); line-height: 0.98; white-space: normal; }
+.sec-body > .ctas { margin-top: 32px; }
+.sec-body > p:not(.kicker) + p { margin-top: 16px; }
+.nav .l { white-space: nowrap; }
+.sec-body table { display: block; overflow-x: auto; margin-top: 40px; border-collapse: collapse; font-size: 15px; line-height: 1.5; }
+.sec-body th, .sec-body td { padding: 14px 18px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; color: var(--dim); }
+.sec-body thead th { font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text); }
+.sec-body td:first-child { min-width: 160px; font-weight: 550; color: var(--text); }
+.sec-body > .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 40px; }
+@media (max-width: 900px) {
+  .sec-body > .cards { grid-template-columns: 1fr; }
+}

@@ -11,6 +11,7 @@ Download Avora.zip from https://github.com/halitsever/avora-screen-recorder/rele
 - [Backgrounds](https://halitsever.github.io/avora-screen-recorder/#backgrounds): no backdrop by default, gradients, colors, pictures and wallpaper
 - [Install](https://halitsever.github.io/avora-screen-recorder/#install): download, updates, building from source and re-rendering a recording from the command line
 - [Under the hood](https://halitsever.github.io/avora-screen-recorder/#hood): export settings, presets and the source layout
+- [Screen Studio alternative](https://halitsever.github.io/avora-screen-recorder/screen-studio-alternative): how Avora compares with Screen Studio, what they share and what Avora lacks
 
 ## Optional
 

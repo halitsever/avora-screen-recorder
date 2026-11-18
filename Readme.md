@@ -4,7 +4,7 @@
 <img src="https://halitsever-api.vercel.app/api/repo-title?title=Avora">
 
 <p align="center">
-🍊 Open-source macOS screen recorder with automatic click-to-zoom, a smooth cursor and backgrounds that turns a raw take into a finished, shareable video. Built with Swift and ScreenCaptureKit.<br>
+🍊 Open-source screen recorder for Mac with automatic click-to-zoom, a smooth cursor and backgrounds that turns a raw take into a finished, shareable video. A free alternative to Screen Studio, built with Swift and ScreenCaptureKit.<br>
 <br/>
 <br/>
 <img src="https://img.shields.io/github/sponsors/halitsever" alt="GitHub Sponsors"/>
