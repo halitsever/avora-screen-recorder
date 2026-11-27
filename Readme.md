@@ -10,7 +10,7 @@ Open-source screen recorder for Mac with automatic click-to-zoom, a smooth curso
 <img src="https://img.shields.io/github/sponsors/halitsever" alt="GitHub Sponsors"/>
 </p>
 <p align="center">
-<a align="center" href="https://halitsever.github.io/avora-screen-recorder/">Documentation</a>
+<a align="center" href="https://projects.halit.org/avora-screen-recorder/">Documentation</a>
   </p>
 </p>
 
@@ -18,19 +18,19 @@ Open-source screen recorder for Mac with automatic click-to-zoom, a smooth curso
 <img src="https://halitsever-api.vercel.app/api/details"/>
 </p>
 
-- [**Automatic zoom**](https://halitsever.github.io/avora-screen-recorder/#zoom) - every click zooms the video in on that spot, and the camera follows the area you work in.
-- [**Smooth cursor**](https://halitsever.github.io/avora-screen-recorder/#zoom) - Avora draws the cursor itself, larger and with smoothed movement.
-- [**Motion blur**](https://halitsever.github.io/avora-screen-recorder/#zoom) - zooms, pans and the cursor smear naturally within each frame.
-- [**Sound**](https://halitsever.github.io/avora-screen-recorder/#using) - record your microphone and the Mac's audio; your voice is evened out or cleaned of background noise on export.
-- [**Camera**](https://halitsever.github.io/avora-screen-recorder/#using) - a bubble in any corner that steps aside when the screen zooms in, or side by side and full screen, lined up with your voice.
-- [**Captions**](https://halitsever.github.io/avora-screen-recorder/#using) - captions written on your Mac from what you say, burned in or saved as .srt.
-- [**Screen, window or area**](https://halitsever.github.io/avora-screen-recorder/#using) - record the whole display, one window or an area you drag out, and pause with ⌃⌥⌘P.
-- [**Backgrounds**](https://halitsever.github.io/avora-screen-recorder/#backgrounds) - off by default, so the recording fills the video. Turn one on for twelve gradients, a color, your own picture or your wallpaper, behind a screen with rounded corners and a soft shadow.
-- [**Menu bar first**](https://halitsever.github.io/avora-screen-recorder/#using) - start and stop recording from the menu bar, Avora's own window, or ⌃⌥⌘R in any app.
-- [**Editor**](https://halitsever.github.io/avora-screen-recorder/#using) - cut, split and speed up clips or just the typing, adjust zooms, blur private info and faces automatically, crop, edit captions, with undo.
-- [**Cursor and shortcuts**](https://halitsever.github.io/avora-screen-recorder/#using) - click effects, a cursor that fades when idle, and a badge for the shortcuts you press.
-- [**Export settings**](https://halitsever.github.io/avora-screen-recorder/#hood) - MP4, HEVC, ProRes or GIF in any shape from 16:9 to 9:16, saved as presets, copied straight to the clipboard if you like.
-- [**Re-render**](https://halitsever.github.io/avora-screen-recorder/#install) - raw recordings are kept for 7 days, so you can render them again with another background.
+- [**Automatic zoom**](https://projects.halit.org/avora-screen-recorder/#zoom) - every click zooms the video in on that spot, and the camera follows the area you work in.
+- [**Smooth cursor**](https://projects.halit.org/avora-screen-recorder/#zoom) - Avora draws the cursor itself, larger and with smoothed movement.
+- [**Motion blur**](https://projects.halit.org/avora-screen-recorder/#zoom) - zooms, pans and the cursor smear naturally within each frame.
+- [**Sound**](https://projects.halit.org/avora-screen-recorder/#using) - record your microphone and the Mac's audio; your voice is evened out or cleaned of background noise on export.
+- [**Camera**](https://projects.halit.org/avora-screen-recorder/#using) - a bubble in any corner that steps aside when the screen zooms in, or side by side and full screen, lined up with your voice.
+- [**Captions**](https://projects.halit.org/avora-screen-recorder/#using) - captions written on your Mac from what you say, burned in or saved as .srt.
+- [**Screen, window or area**](https://projects.halit.org/avora-screen-recorder/#using) - record the whole display, one window or an area you drag out, and pause with ⌃⌥⌘P.
+- [**Backgrounds**](https://projects.halit.org/avora-screen-recorder/#backgrounds) - off by default, so the recording fills the video. Turn one on for twelve gradients, a color, your own picture or your wallpaper, behind a screen with rounded corners and a soft shadow.
+- [**Menu bar first**](https://projects.halit.org/avora-screen-recorder/#using) - start and stop recording from the menu bar, Avora's own window, or ⌃⌥⌘R in any app.
+- [**Editor**](https://projects.halit.org/avora-screen-recorder/#using) - cut, split and speed up clips or just the typing, adjust zooms, blur private info and faces automatically, crop, edit captions, with undo.
+- [**Cursor and shortcuts**](https://projects.halit.org/avora-screen-recorder/#using) - click effects, a cursor that fades when idle, and a badge for the shortcuts you press.
+- [**Export settings**](https://projects.halit.org/avora-screen-recorder/#hood) - MP4, HEVC, ProRes or GIF in any shape from 16:9 to 9:16, saved as presets, copied straight to the clipboard if you like.
+- [**Re-render**](https://projects.halit.org/avora-screen-recorder/#install) - raw recordings are kept for 7 days, so you can render them again with another background.
 
 <p align="center" >
 <img src="https://halitsever-api.vercel.app/api/installation"/>

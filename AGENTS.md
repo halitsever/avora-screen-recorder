@@ -20,7 +20,7 @@ Open-source macOS screen recorder (Swift, ScreenCaptureKit, SwiftUI) with automa
 ## Docs and site
 
 - The root `package.json` belongs to the VitePress site in `docs/`, not to the app.
-- `.github/workflows/deploy-docs.yml` deploys it to https://halitsever.github.io/avora-screen-recorder/ on pushes to `main` that touch `docs/**`, `Resources/Brand/**`, `package.json` or `package-lock.json`.
+- `.github/workflows/deploy-docs.yml` deploys it to https://projects.halit.org/avora-screen-recorder/ on pushes to `main` that touch `docs/**`, `Resources/Brand/**`, `package.json` or `package-lock.json`.
 - `DOCS_URL` overrides the site URL for a custom domain; the base path follows from it. `docs/public/robots.txt` and `docs/public/llms.txt` hardcode the Pages URL, so update them with it.
 - The site is a single page. Sections are `#using`, `#zoom`, `#backgrounds`, `#install` and `#hood`; the README feature links point at them.
 
