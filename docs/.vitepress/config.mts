@@ -2,7 +2,7 @@ import { defineConfigWithTheme } from 'vitepress'
 import type { AvoraTheme } from './theme/types'
 
 /** Where the site is published. Set DOCS_URL for a custom domain; the base path follows from it. */
-const url = process.env.DOCS_URL ?? 'https://halitsever.github.io/avora-screen-recorder/'
+const url = process.env.DOCS_URL ?? 'https://projects.halit.org/avora-screen-recorder/'
 const base = new URL(url).pathname
 const description = 'Open source screen recorder for Mac that zooms in on your clicks, with a smooth cursor and backgrounds. A free Screen Studio alternative.'
 
@@ -39,7 +39,7 @@ export default defineConfigWithTheme<AvoraTheme>({
   appearance: false,
   sitemap: { hostname: url },
   head: [
-    /** Cloudflare Web Analytics, one token for every page on halitsever.github.io. */
+    /** Cloudflare Web Analytics, one token for every page on projects.halit.org. */
     ['script', { defer: '', src: 'https://static.cloudflareinsights.com/beacon.min.js', 'data-cf-beacon': '{"token": "dd7e54d3f48841c187d72d9dbb92a6b6"}' }],
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#0B0C10' }],

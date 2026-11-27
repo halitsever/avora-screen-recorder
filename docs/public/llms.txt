@@ -6,12 +6,12 @@ Download Avora.zip from https://github.com/halitsever/avora-screen-recorder/rele
 
 ## Docs
 
-- [Using Avora](https://halitsever.github.io/avora-screen-recorder/#using): recording the screen, a window or an area, sound, camera, captions, keyboard badges and the editor
-- [Automatic zoom](https://halitsever.github.io/avora-screen-recorder/#zoom): how clicks become zooms and how the camera follows your work
-- [Backgrounds](https://halitsever.github.io/avora-screen-recorder/#backgrounds): no backdrop by default, gradients, colors, pictures and wallpaper
-- [Install](https://halitsever.github.io/avora-screen-recorder/#install): download, updates, building from source and re-rendering a recording from the command line
-- [Under the hood](https://halitsever.github.io/avora-screen-recorder/#hood): export settings, presets and the source layout
-- [Screen Studio alternative](https://halitsever.github.io/avora-screen-recorder/screen-studio-alternative): how Avora compares with Screen Studio, what they share and what Avora lacks
+- [Using Avora](https://projects.halit.org/avora-screen-recorder/#using): recording the screen, a window or an area, sound, camera, captions, keyboard badges and the editor
+- [Automatic zoom](https://projects.halit.org/avora-screen-recorder/#zoom): how clicks become zooms and how the camera follows your work
+- [Backgrounds](https://projects.halit.org/avora-screen-recorder/#backgrounds): no backdrop by default, gradients, colors, pictures and wallpaper
+- [Install](https://projects.halit.org/avora-screen-recorder/#install): download, updates, building from source and re-rendering a recording from the command line
+- [Under the hood](https://projects.halit.org/avora-screen-recorder/#hood): export settings, presets and the source layout
+- [Screen Studio alternative](https://projects.halit.org/avora-screen-recorder/screen-studio-alternative): how Avora compares with Screen Studio, what they share and what Avora lacks
 
 ## Optional
 
