@@ -29,6 +29,8 @@ const jsonLd = {
 }
 
 export default defineConfigWithTheme<AvoraTheme>({
+  /** keeps the page hash map out of every page's HTML, which Semrush reads as a low text-to-HTML ratio */
+  metaChunk: true,
   lang: 'en-US',
   title: 'Avora',
   description,
