@@ -70,8 +70,8 @@ Yes. The Screenshot toolbar and QuickTime Player come with macOS. Avora is also 
 ## Related posts
 
 - [How to stop a screen recording on Mac](/blog/how-to-stop-screen-recording-on-mac)
-- [How to record screen and audio on Mac](/blog/how-to-record-screen-and-audio-on-mac)
-- [Where do screen recordings go on Mac?](/blog/where-do-screen-recordings-go-on-mac)
+- [Record your screen with QuickTime Player](/blog/quicktime-screen-recording)
+- [Editing a screen recording on a Mac](/blog/edit-screen-recording-mac)
 - [All posts](/blog/)
 
 </div>

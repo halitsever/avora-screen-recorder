@@ -64,9 +64,9 @@ Yes. On macOS 27, choose a microphone and turn on Include System Audio. Avora re
 
 ## Related posts
 
-- [How to stop a screen recording on Mac](/blog/how-to-stop-screen-recording-on-mac)
-- [How to screen record on Mac](/blog/how-to-screen-record-on-mac)
 - [Record Mac system audio without BlackHole](/blog/record-mac-system-audio-without-blackhole)
+- [Record your screen with QuickTime Player](/blog/quicktime-screen-recording)
+- [Add captions to a video on your Mac](/blog/add-captions-to-video-mac)
 - [All posts](/blog/)
 
 </div>

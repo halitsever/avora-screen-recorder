@@ -63,8 +63,8 @@ The thumbnail may still be showing, Save to may point to another folder, or the 
 ## Related posts
 
 - [How to stop a screen recording on Mac](/blog/how-to-stop-screen-recording-on-mac)
-- [How to screen record on Mac](/blog/how-to-screen-record-on-mac)
 - [Record your screen to a GIF on Mac](/blog/screen-recording-to-gif-mac)
+- [Convert a MOV file to MP4 on a Mac](/blog/mov-to-mp4-mac)
 - [All posts](/blog/)
 
 </div>
