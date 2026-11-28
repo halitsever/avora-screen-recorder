@@ -2,7 +2,7 @@
 title: "How to Stop a Screen Recording on Mac"
 titleTemplate: false
 description: "Stop a screen recording on Mac with the Stop button in the menu bar or Command-Control-Esc, find the button when it is hidden, and stop Avora from any app."
-headline: "How to stop a screen recording on Mac"
+headline: "Two ways to stop a screen recording on your Mac"
 date: "2026-11-28"
 keyword: "how to stop screen recording on mac"
 faq: [{"q": "What is the shortcut to stop screen recording on a Mac?", "a": "Command-Control-Esc stops a recording made with the Screenshot toolbar or QuickTime Player."}, {"q": "Why can't I stop my screen recording on Mac?", "a": "The Stop button lives in the menu bar, which hides when an app is in full screen. Move the pointer to the top of the screen or press Command-Control-Esc."}, {"q": "Does stopping a recording save it automatically?", "a": "Yes. The built-in recorder saves the file as soon as you stop, to the desktop unless you chose another place under Options."}]
@@ -10,7 +10,7 @@ faq: [{"q": "What is the shortcut to stop screen recording on a Mac?", "a": "Com
 
 <div class="post wrap">
 
-# How to stop a screen recording on Mac
+# Two ways to stop a screen recording on your Mac
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 

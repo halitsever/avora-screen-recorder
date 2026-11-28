@@ -2,7 +2,7 @@
 title: "How to Record Screen and Audio on Mac"
 titleTemplate: false
 description: "Record your Mac's screen with your voice and the Mac's own sound: the built-in options by macOS version, then a voice-over with camera and captions."
-headline: "How to record screen and audio on Mac"
+headline: "Record your Mac screen with your voice and system audio"
 date: "2026-11-28"
 keyword: "how to record audio and screen on mac"
 faq: [{"q": "Why is there no sound in my Mac screen recording?", "a": "No microphone was chosen under Options, or you expected the Mac's own sound, which the built-in recorder only captures on macOS 27 Golden Gate with Include System Audio turned on."}, {"q": "Can I record my voice and the Mac's sound at the same time?", "a": "Yes. On macOS 27, choose a microphone and turn on Include System Audio. Avora records both on separate tracks on macOS 14 and later."}]
@@ -10,7 +10,7 @@ faq: [{"q": "Why is there no sound in my Mac screen recording?", "a": "No microp
 
 <div class="post wrap">
 
-# How to record screen and audio on Mac
+# Record your Mac screen with your voice and system audio
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 

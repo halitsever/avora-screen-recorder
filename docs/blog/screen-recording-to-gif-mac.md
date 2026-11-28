@@ -2,7 +2,7 @@
 title: "Record Your Screen to a GIF on Mac"
 titleTemplate: false
 description: "macOS records screen video as .mov, not GIF. How to record your screen straight to a GIF on Mac, convert an existing recording, and keep the file small."
-headline: "Record your screen to a GIF on Mac"
+headline: "Turn a Mac screen recording into a GIF"
 date: "2026-11-28"
 keyword: "record screen to gif mac"
 faq: [{"q": "Can Mac record the screen as a GIF?", "a": "Not with the built-in tools; they save .mov files. Avora exports GIF directly, or you can convert a .mov with ffmpeg."}, {"q": "Why is my screen recording GIF so large?", "a": "GIFs store up to 256 colors per frame and compress poorly. Record a smaller area, shorten it, and lower the frame rate and width."}]
@@ -10,7 +10,7 @@ faq: [{"q": "Can Mac record the screen as a GIF?", "a": "Not with the built-in t
 
 <div class="post wrap">
 
-# Record your screen to a GIF on Mac
+# Turn a Mac screen recording into a GIF
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 
