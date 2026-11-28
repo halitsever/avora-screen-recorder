@@ -1,4 +1,4 @@
-import { defineConfigWithTheme } from 'vitepress'
+import { defineConfigWithTheme, type HeadConfig } from 'vitepress'
 import type { AvoraTheme } from './theme/types'
 
 /** Where the site is published. Set DOCS_URL for a custom domain; the base path follows from it. */
@@ -28,6 +28,49 @@ const jsonLd = {
   ],
 }
 
+/** BlogPosting and breadcrumbs for posts, FAQPage wherever the page shows an FAQ. */
+function pageJsonLd(fm: Record<string, any>, pageUrl: string, title: string, description: string) {
+  const person = { ...author, url: 'https://halit.org' }
+  const graph: object[] = []
+  if (fm.date) {
+    graph.push(
+      {
+        '@type': 'BlogPosting',
+        headline: fm.headline ?? title,
+        description,
+        url: pageUrl,
+        mainEntityOfPage: pageUrl,
+        datePublished: fm.date,
+        dateModified: fm.date,
+        inLanguage: 'en',
+        image: `${url}social.png`,
+        keywords: fm.keyword,
+        author: person,
+        publisher: person,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Avora', item: url },
+          { '@type': 'ListItem', position: 2, name: 'Blog', item: `${url}blog/` },
+          { '@type': 'ListItem', position: 3, name: fm.headline ?? title, item: pageUrl },
+        ],
+      },
+    )
+  }
+  if (fm.faq?.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: fm.faq.map((f: { q: string; a: string }) => ({
+        '@type': 'Question',
+        name: f.q,
+        acceptedAnswer: { '@type': 'Answer', text: f.a.replace(/<[^>]+>|`|\*\*/g, '') },
+      })),
+    })
+  }
+  return { '@context': 'https://schema.org', '@graph': graph }
+}
+
 export default defineConfigWithTheme<AvoraTheme>({
   /** keeps the page hash map out of every page's HTML, which Semrush reads as a low text-to-HTML ratio */
   metaChunk: true,
@@ -44,7 +87,6 @@ export default defineConfigWithTheme<AvoraTheme>({
     ['link', { rel: 'icon', type: 'image/svg+xml', href: `${base}favicon.svg` }],
     ['meta', { name: 'theme-color', content: '#0B0C10' }],
     // Link previews need absolute image URLs.
-    ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:image', content: `${url}social.png` }],
     ['meta', { property: 'og:image:width', content: '1280' }],
     ['meta', { property: 'og:image:height', content: '640' }],
@@ -59,7 +101,12 @@ export default defineConfigWithTheme<AvoraTheme>({
     if (pageData.isNotFound) return
     const path = pageData.relativePath.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')
     const pageUrl = new URL(path, url).href
+    const fm = pageData.frontmatter
+    const extra: HeadConfig[] = []
+    if (fm.date || fm.faq) extra.push(['script', { type: 'application/ld+json' }, JSON.stringify(pageJsonLd(fm, pageUrl, title, description))])
     return [
+      ...extra,
+      ['meta', { property: 'og:type', content: fm.date ? 'article' : 'website' }],
       ['link', { rel: 'canonical', href: pageUrl }],
       ['meta', { property: 'og:url', content: pageUrl }],
       ['meta', { property: 'og:title', content: pageData.frontmatter.ogTitle ?? title }],
@@ -74,6 +121,7 @@ export default defineConfigWithTheme<AvoraTheme>({
       { text: 'Backgrounds', link: '#backgrounds' },
       { text: 'Install', link: '#install' },
       { text: 'vs Screen Studio', link: '/screen-studio-alternative' },
+      { text: 'Blog', link: '/blog/' },
     ],
     repo,
     footer: 'MIT. The Sora font is under the SIL Open Font License.',
