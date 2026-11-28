@@ -2,7 +2,7 @@
 title: "Auto Zoom in Screen Recordings: How It Works"
 titleTemplate: false
 description: "How a screen recorder with auto zoom decides where and when to zoom: click windows, focus regions, springs, motion blur and a cursor drawn after recording."
-headline: "Auto zoom in screen recordings: how it works"
+headline: "How does auto zoom work in a screen recording?"
 date: "2026-11-28"
 keyword: "screen recorder with auto zoom"
 faq: [{"q": "What is auto zoom in a screen recorder?", "a": "The recorder zooms the video in on the area you click and follows your work, then zooms back out, so the result looks edited without manual keyframes."}, {"q": "Can I turn off or change the automatic zooms?", "a": "Yes. In Avora's editor you can remove, move, resize or add zooms, change their level from 1x to 4x and pin their focus."}]
@@ -10,7 +10,7 @@ faq: [{"q": "What is auto zoom in a screen recorder?", "a": "The recorder zooms 
 
 <div class="post wrap">
 
-# Auto zoom in screen recordings: how it works
+# How does auto zoom work in a screen recording?
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 

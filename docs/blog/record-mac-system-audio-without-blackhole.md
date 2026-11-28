@@ -2,7 +2,7 @@
 title: "Record Mac System Audio Without BlackHole"
 titleTemplate: false
 description: "Why people install BlackHole to screen record with audio on Mac, how the Multi-Output setup works, and the ways to record system audio with no virtual driver."
-headline: "Record Mac system audio without BlackHole"
+headline: "Capture your Mac's system audio, no BlackHole needed"
 date: "2026-11-28"
 keyword: "screen recording with audio mac black hole"
 faq: [{"q": "Do I need BlackHole to record system audio on Mac?", "a": "Not any more in many cases. macOS 27 Golden Gate's Screenshot toolbar has Include System Audio, and apps built on ScreenCaptureKit, such as OBS 30+ and Avora, capture it directly."}, {"q": "Why can't I hear anything while recording with BlackHole?", "a": "The Mac's output is going only to BlackHole. Create a Multi-Output Device in Audio MIDI Setup that includes your speakers as well."}]
@@ -10,7 +10,7 @@ faq: [{"q": "Do I need BlackHole to record system audio on Mac?", "a": "Not any 
 
 <div class="post wrap">
 
-# Record Mac system audio without BlackHole
+# Capture your Mac's system audio, no BlackHole needed
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 

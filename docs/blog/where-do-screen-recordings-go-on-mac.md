@@ -2,7 +2,7 @@
 title: "Where Do Screen Recordings Go on Mac?"
 titleTemplate: false
 description: "Mac screen recordings are saved to the desktop as .mov files by default. How to find them, change where they go, and where Avora keeps its recordings."
-headline: "Where do screen recordings go on Mac?"
+headline: "Where your Mac saves screen recordings, and how to change it"
 date: "2026-11-28"
 keyword: "where do screen recordings go on mac"
 faq: [{"q": "Where are QuickTime screen recordings saved?", "a": "QuickTime's New Screen Recording uses the Screenshot toolbar, so recordings go to the desktop or the place chosen under Options, Save to."}, {"q": "Why is my screen recording not on the desktop?", "a": "The thumbnail may still be showing, Save to may point to another folder, or the recording was not stopped. Search Finder for Screen Recording."}]
@@ -10,7 +10,7 @@ faq: [{"q": "Where are QuickTime screen recordings saved?", "a": "QuickTime's Ne
 
 <div class="post wrap">
 
-# Where do screen recordings go on Mac?
+# Where your Mac saves screen recordings, and how to change it
 
 <p class="post-meta">By <a href="https://halit.org">Halit Sever</a> · <time datetime="2026-11-28">28 November 2026</time></p>
 
