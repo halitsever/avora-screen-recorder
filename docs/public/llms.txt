@@ -12,6 +12,8 @@ Download Avora.zip from https://github.com/halitsever/avora-screen-recorder/rele
 - [Install](https://projects.halit.org/avora-screen-recorder/#install): download, updates, building from source and re-rendering a recording from the command line
 - [Under the hood](https://projects.halit.org/avora-screen-recorder/#hood): export settings, presets and the source layout
 - [Screen Studio alternative](https://projects.halit.org/avora-screen-recorder/screen-studio-alternative): how Avora compares with Screen Studio, what they share and what Avora lacks
+- [Mac screen recorder with audio](https://projects.halit.org/avora-screen-recorder/mac-screen-recorder-with-audio/): recording the microphone and system audio without BlackHole, features and a comparison with the built-in recorder, OBS and Screen Studio
+- [Blog](https://projects.halit.org/avora-screen-recorder/blog/): guides to starting and stopping screen recordings on Mac, recording system audio and voice, where recordings are saved, OBS alternatives, GIF export and how auto zoom works
 
 ## Optional
 

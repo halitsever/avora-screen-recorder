@@ -33,7 +33,7 @@ onBeforeUnmount(() => removeEventListener('scroll', onScroll))
     <div class="wrap foot-row">
       <span class="foot-brand"><img :src="mark" alt="" width="18" height="18" />avora</span>
       <span>{{ theme.footer }}</span>
-      <span><a :href="theme.repo">GitHub</a> · <a :href="`${theme.repo}/issues`">Issues</a></span>
+      <span><a :href="withBase('/blog/')">Blog</a> · <a :href="withBase('/mac-screen-recorder-with-audio/')">Recording with audio</a> · <a :href="theme.repo">GitHub</a> · <a :href="`${theme.repo}/issues`">Issues</a></span>
     </div>
   </footer>
 </template>
